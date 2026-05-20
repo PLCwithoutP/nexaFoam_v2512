@@ -1,0 +1,6 @@
+<mechanism name="N2-N-dissociation">
+    <arrhenius_units A="mol,cm,s,K" E="kcal,mol,K" />
+    <reaction formula="N2 + N2 => 2N + N2">
+        <arrhenius A="7e21" n="-1.6" T="113200" />
+    </reaction>
+</mechanism>

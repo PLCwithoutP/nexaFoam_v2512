@@ -1,0 +1,16 @@
+# OpenFOAM build directories
+platforms/
+Make/linux*
+bin/
+
+# Dependency and Object files
+*.o
+*.dep
+*.out
+
+# lnInclude directories (symlinks)
+lnInclude/
+
+# Log files and backups
+log.*
+*.bak

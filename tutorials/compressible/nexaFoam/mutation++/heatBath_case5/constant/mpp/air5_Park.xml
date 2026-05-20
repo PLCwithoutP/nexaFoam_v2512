@@ -1,0 +1,133 @@
+<!--
+    Vatansever (2020) MSc Thesis — Table A.1
+    Thermo-chemistry model for reacting air (Air-5 species: N2, O2, NO, N, O)
+
+    19 irreversible forward reactions.
+    Exchange reactions 16-19 cover both Zeldovich directions explicitly,
+    so no reverse rate is computed by Mutation++.
+
+    Unit conversion:
+      Table A.1 gives A in m³/(kmol·s).
+      Mutation++ expects cm³/(mol·s) with declaration A="mol,cm,s,K".
+      Conversion: A_[cm³/mol/s] = A_[m³/kmol/s] × 1e3
+
+    Activation temperature T_a = E_a / R_u  [K] — used directly in the
+    arrhenius T attribute, independent of the E= unit declaration.
+-->
+<mechanism name="air5_Park">
+
+    <arrhenius_units A="mol,cm,s,K" E="kcal,mol,K" />
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         O2 DISSOCIATION  (reactions 1–5)
+         All share Ta = 59370.6 K
+    ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- R1 -->
+    <reaction formula="O2+N2=>2O+N2">
+        <arrhenius A="7.829E+19" n="-1.0" T="59370.6" />
+    </reaction>
+
+    <!-- R2 -->
+    <reaction formula="O2+N=>2O+N">
+        <arrhenius A="6.624E+19" n="-1.0" T="59370.6" />
+    </reaction>
+
+    <!-- R3 -->
+    <reaction formula="O2+NO=>2O+NO">
+        <arrhenius A="6.624E+19" n="-1.0" T="59370.6" />
+    </reaction>
+
+    <!-- R4 -->
+    <reaction formula="O2+O2=>2O+O2">
+        <arrhenius A="3.210E+19" n="-1.0" T="59370.6" />
+    </reaction>
+
+    <!-- R5 -->
+    <reaction formula="O2+O=>2O+O">
+        <arrhenius A="9.033E+19" n="-1.05" T="59370.6" />
+    </reaction>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         N2 DISSOCIATION  (reactions 6–10)
+         All share Ta = 113497.4 K
+    ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- R6 -->
+    <reaction formula="N2+O=>2N+O">
+        <arrhenius A="2.409E+18" n="-0.54" T="113497.4" />
+    </reaction>
+
+    <!-- R7 -->
+    <reaction formula="N2+O2=>2N+O2">
+        <arrhenius A="9.033E+18" n="-0.68" T="113497.4" />
+    </reaction>
+
+    <!-- R8 -->
+    <reaction formula="N2+NO=>2N+NO">
+        <arrhenius A="9.033E+18" n="-0.68" T="113497.4" />
+    </reaction>
+
+    <!-- R9 -->
+    <reaction formula="N2+N2=>2N+N2">
+        <arrhenius A="2.469E+18" n="-0.62" T="113497.4" />
+    </reaction>
+
+    <!-- R10 -->
+    <reaction formula="N2+N=>2N+N">
+        <arrhenius A="6.022E+18" n="-0.68" T="113497.4" />
+    </reaction>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         NO DISSOCIATION  (reactions 11–15)
+         All share Ta = 75544.2 K
+         R14 and R15: collision partner appears on both sides as spectator.
+         Atom balance: R14 NO+O=>N+2O  (1N+2O each side) ✓
+                       R15 NO+N=>O+2N  (2N+1O each side) ✓
+    ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- R11 -->
+    <reaction formula="NO+N2=>N+O+N2">
+        <arrhenius A="1.265E+20" n="-1.0" T="75544.2" />
+    </reaction>
+
+    <!-- R12 -->
+    <reaction formula="NO+O2=>N+O+O2">
+        <arrhenius A="1.204E+20" n="-1.0" T="75544.2" />
+    </reaction>
+
+    <!-- R13 -->
+    <reaction formula="NO+NO=>N+O+NO">
+        <arrhenius A="6.022E+19" n="-1.0" T="75544.2" />
+    </reaction>
+
+    <!-- R14 -->
+    <reaction formula="NO+O=>N+2O">
+        <arrhenius A="2.409E+20" n="-1.1" T="75544.2" />
+    </reaction>
+
+    <!-- R15 -->
+    <reaction formula="NO+N=>O+2N">
+        <arrhenius A="2.409E+20" n="-1.1" T="75544.2" />
+    </reaction>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         EXCHANGE (Zeldovich) REACTIONS  (reactions 16–19)
+         Both forward and reverse directions are listed explicitly as
+         separate irreversible reactions, so Mutation++ does not compute
+         any k_b from detailed balance.
+         R16 ↔ R18  (NO+O ⇌ O2+N)
+         R17 ↔ R19  (N2+O ⇌ NO+N)
+    ════════════════════════════════════════════════════════════════════ -->
+
+    <!-- R16 -->
+    <reaction formula="NO+O=O2+N">
+        <arrhenius A="1.385E+11" n="0.5" T="19693.6" />
+    </reaction>
+
+    <!-- R17 -->
+    <reaction formula="N2+O=NO+N">
+        <arrhenius A="4.818E+13" n="0.0" T="37482.4" />
+    </reaction>
+
+</mechanism>

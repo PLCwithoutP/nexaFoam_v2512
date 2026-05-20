@@ -1,0 +1,29 @@
+<!--
+    Mutation++ mixture file for Case 4:
+    N2-N V-T and C-V relaxation, reacting (one-step irreversible), 2T
+
+    Vatansever (2020) Section 4.1.5 — reacting two-species mixture.
+    Initial conditions same as Case 2 (N2-N non-reacting):
+      TTR   = 30000 K
+      TVib  = 1000 K
+      Y_N2  = 2/3 ~ 0.6667  (n_N2 = 5e22 /m3)
+      Y_N   = 1/3 ~ 0.3333  (n_N  = 5e22 /m3)
+      p     = 41420 Pa
+
+    One-step irreversible dissociation:
+      N2 + N2 -> 2N + N2   (reaction 9 from Table A.1)
+
+    NOTE: C-V coupling (OmegaCV) is automatically included inside
+    Mutation++'s energyTransferSource() alongside OmegaVT.
+    correctCVSource() in mutationppWrapper returns zero to avoid double-counting.
+-->
+<mixture name="N2-N-reacting"
+         mechanism="air5_Park.xml"
+         state_model="ChemNonEqTTv"
+         thermo_db="RRHO">
+
+    <species>
+        N2 N
+    </species>
+
+</mixture>

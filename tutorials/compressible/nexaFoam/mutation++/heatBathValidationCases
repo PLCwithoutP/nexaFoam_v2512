@@ -1,0 +1,10 @@
+1. **Case1:** Heat Bath case as N₂ thermal relaxation with no chemical reactions (V–T only, single species).
+
+2. **Case2:** Heat Bath case as N₂–N thermal relaxation with no chemical reactions (V–T only, multi-species without chemistry).
+
+3. **Case3:** Heat Bath case as N₂–O₂ thermal relaxation including V–T and V–V interactions with no chemical reactions.
+
+4. **Case4:** Heat Bath case as chemical relaxation of air with chemical reactions but no thermal non-equilibrium (single temperature).
+
+5. **Case5:** Heat Bath case as N₂–N thermochemical relaxation including both chemical reactions and thermal non-equilibrium (V–T + chemistry).
+

@@ -1,0 +1,86 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      speciesDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+species
+(
+    air
+);
+
+air
+{
+    elements
+    {
+        N 2; // placeholder since this is single specie
+    }
+
+    specie
+    {
+        molWeight       28.97; // g.m^(-3)
+        type            molecular;
+    }
+    thermodynamics
+    {
+    TAbsLow            200; // K
+    TAbsHigh           20000; // K
+    TFirstInt          1000; // K
+    TSecondInt         6000; // K
+    ThetaVibrational   3371; // K
+    highCpCoeffs // placeholder
+    (
+        1.009950160e+04
+        -1.968275610e+02
+        5.009155110e+00
+        -5.763282750e-03
+        1.067859480e-05
+        -7.940297970e-09
+        2.185231910e-12
+        -1.767967310e+02
+        -3.921504225e+00
+    );
+    midCpCoeffs // air coefficients for mid temperatures
+    (
+        2.415214430e+05
+        -1.257874600e+03
+        5.144558670e+00
+        -2.138541790e-04
+        7.065227840e-08
+        -1.071483490e-11
+        1.111728570e-15
+        6.462263190e+03
+        -8.147411905e+00
+    );
+    lowCpCoeffs // air coefficients for low temperatures
+    (
+        1.009950160e+04
+        -1.968275610e+02
+        5.009155110e+00
+        -5.763282750e-03
+        1.067859480e-05
+        -7.940297970e-09
+        2.185231910e-12
+        -1.767967310e+02
+        -3.921504225e+00
+    );
+    }
+    // placeholder since inviscid analysis
+    transport
+    {
+        AB              2.7321e-02;
+        BB              2.4321e-01;
+        CB              -1.0805e+01;
+        //Pr            0.7020; // Valid 200-10000 K
+    }
+}

@@ -1,0 +1,26 @@
+/*---------------------------------------------------------------------------*\
+    thermophysicalProperties
+    Case 3: N2-O2 V-T + V-V relaxation, non-reacting, 2T
+
+    Vatansever (2020) Table 4.3
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      thermophysicalProperties;
+}
+
+library             mutationpp;
+
+twoTemperature      true;
+chemistry           false;
+
+// V-V relaxation: always false on mutationpp path (Knab model not in API).
+// Listed here for documentation completeness; thermochemistryCheck.H
+// ignores this keyword on the mutationpp branch.
+// VVrelaxation     false;
+
+// ************************************************************************* //

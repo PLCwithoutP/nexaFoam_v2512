@@ -1,0 +1,37 @@
+/*---------------------------------------------------------------------------*\
+    mppDict — Mutation++ adapter configuration
+    Case 3: N2-O2 V-T + V-V relaxation, non-reacting, 2T
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      mppDict;
+}
+
+// Name of the mixture XML file (without .xml extension)
+// Located inside mppCaseDir
+mixtureName         N2-O2-nonreacting;
+
+// Path to the directory containing the Mutation++ XML files.
+// Relative to the case root directory.
+mppCaseDir          "constant/mpp";
+
+// Characteristic vibrational temperatures [K]
+// Required for every molecular species in the mixture.
+// Used by the harmonic oscillator fallback in esVibHO_ and
+// for species-level energy initialisation in createFields.H.
+thetaVib
+{
+    N2      3395;   // nitrogen
+    O2      2256;   // oxygen
+}
+
+// Optional transport algorithm overrides
+// Defaults: Wilke viscosity, Ramshaw diffusion
+viscosityAlgo       Wilke;
+diffusionAlgo       Ramshaw;
+
+// ************************************************************************* //

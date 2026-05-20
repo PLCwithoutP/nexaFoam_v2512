@@ -1,0 +1,24 @@
+<!--
+    Reaction mechanism for Case 4: N2-N one-step irreversible dissociation.
+
+    Vatansever (2020) Section 4.1.5 and Table A.1 reaction 9:
+      N2 + N2 -> 2N + N2
+
+    Arrhenius units: m^3, kmol, s, K
+      A    = 2.469e15 m^3/kmol/s
+      beta = -0.62
+      Ta   = 113497.4 K   (activation temperature = Ea/R)
+
+    Irreversible: reverse reaction is NOT computed.
+    This matches Vatansever's one-step model assumption.
+-->
+<mechanism name="N2-N-dissociation">
+
+    <!-- Units declaration: A in m^3/kmol/s, temperature in K -->
+    <arrhenius_units A="mol,cm,s,K" E="kcal,mol,K" />
+
+    <reaction formula="N2 + N2 = 2N + N2">
+        <arrhenius A="7.0e21" n="-1.6" T="113200" />
+    </reaction>
+
+</mechanism>

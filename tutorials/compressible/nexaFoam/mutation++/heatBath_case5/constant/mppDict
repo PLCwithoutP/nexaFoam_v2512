@@ -1,0 +1,36 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     |                                                 |
+|   \\  /    A nd           |                                                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      mppDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+mixtureName     air_5;
+mppCaseDir      "constant/mpp";
+
+thetaVib
+{
+    N2    3395;   // K  — characteristic vibrational temperature
+    O2    2256;   // K
+    NO    2739;   // K
+    // N and O are atoms — no thetaVib entry required
+}
+
+viscosityAlgo   Wilke;
+diffusionAlgo   Ramshaw;
+
+mppEulerImplicitCoeffs
+{
+    cTauChem    0.1;   // sub-step fraction of (rho_i / |wdot_i|)
+}
+
+// ************************************************************************* //

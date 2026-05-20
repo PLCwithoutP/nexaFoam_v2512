@@ -1,0 +1,95 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+libs 
+(
+    "libneTCLib_2T.so"
+);
+
+application     nexaFoam;
+
+startFrom       latestTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.007;
+
+deltaT          1e-05;
+
+writeControl    adjustableRunTime;
+
+writeInterval   5e-05;
+
+purgeWrite      1;
+
+writeFormat     ascii;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+graphFormat     raw;
+
+runTimeModifiable true;
+
+adjustTimeStep  yes;
+
+maxCo           0.4;
+
+maxDeltaT       5.34e-05;
+
+functions
+{
+    xLineSample
+    {
+        type            sets;
+        libs            ("libsampling.so");   // sampling library
+        enabled         true;
+
+        // when postProcess runs, it will write once at the selected time(s)
+        writeControl    writeTime;
+
+        setFormat       csv;
+        interpolationScheme cellPoint;
+
+        sets
+        (
+            xLine
+            {
+                type    uniform;
+                axis    x;
+
+                // choose line endpoints in your domain
+                start   (-5 0 0);
+                end     (5 0 0);
+
+                // match paper resolution, or increase for smoother curves
+                nPoints 100;
+            }
+        );
+
+        fields (p U TTR rho);
+    }
+}
+
+
+// ************************************************************************* //

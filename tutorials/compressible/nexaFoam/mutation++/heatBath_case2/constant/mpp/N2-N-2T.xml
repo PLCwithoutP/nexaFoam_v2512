@@ -1,0 +1,8 @@
+<!-- Case 1: N2 only, 2T thermal nonequilibrium, no chemistry -->
+<mixture name="N2-N-2T"
+         state_model="ChemNonEqTTv"
+         thermo_db="RRHO">
+    <species>
+        N2 N
+    </species>
+</mixture>

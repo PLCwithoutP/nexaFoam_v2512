@@ -1,0 +1,28 @@
+<!--
+    Mutation++ mixture file for Case 3:
+    N2-O2 V-T and V-V relaxation, non-reacting, 2T
+
+    Vatansever (2020) Table 4.3:
+      TTR   = 5000 K
+      TVib  = 30000 K (both N2 and O2)
+      Y_N2  = 0.5,  Y_O2 = 0.5
+      p     = 1 atm = 101325 Pa
+
+    NOTE: V-V relaxation (Knab model) is not in Mutation++ public API.
+    useVibVibRelaxation is forced to false in thermochemistryCheck.H
+    on the mutationpp path. OmegaVT is provided by energyTransferSource().
+-->
+<mixture name="N2-O2-nonreacting"
+         state_model="ChemNonEqTTv"
+         thermo_db="RRHO">
+
+    <species>
+        N2 O2
+    </species>
+
+    <!-- 2T state model: T_tr (translation+rotation) and T_ve (vibration+electronic) -->
+    <state_model>TV</state_model>
+
+    <!-- No reaction mechanism — non-reacting case -->
+
+</mixture>

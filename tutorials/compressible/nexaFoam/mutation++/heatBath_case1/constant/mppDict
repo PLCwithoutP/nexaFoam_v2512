@@ -1,0 +1,44 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      mppDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+/*---------------------------------------------------------------------------*\
+    mppDict
+
+    Runtime configuration for mutationPPAdapter.
+    Mutation++ XML files (mixture + mechanism) must be placed in mppCaseDir.
+    The user controls active reactions by editing the mechanism XML directly.
+\*---------------------------------------------------------------------------*/
+
+// Path to case-local Mutation++ XML files (relative to case root)
+mppCaseDir      "constant/mpp";
+
+// Mixture name — must match constant/mpp/<mixtureName>.xml
+// The mixture XML references the mechanism XML.
+mixtureName     "N2-2T";
+
+// Characteristic vibrational temperatures [K].
+// Required for every molecular species in the mixture.
+// Atoms are omitted (no vibrational mode).
+// Fatal error if a molecular species is missing.
+thetaVib
+{
+    N2    3395.0;
+}
+
+// Optional transport algorithm overrides.
+// If absent, defaults from mixture XML are used.
+// viscosityAlgo    "Wilke";      // Wilke | Gupta-Yos
+// diffusionAlgo    "Ramshaw";    // Exact | Ramshaw

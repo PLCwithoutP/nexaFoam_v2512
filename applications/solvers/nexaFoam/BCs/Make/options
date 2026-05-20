@@ -1,0 +1,17 @@
+EXE_INC = \
+    -I../../../../src/thermophysicalModels/neTCLib/2T/basic/lnInclude \
+    -I../../../../src/thermophysicalModels/neTCLib/2T/specie/lnInclude \
+    -I../../../../src/thermophysicalModels/TCLibraryBase/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/transportModels/compressible/lnInclude \
+    -I$(LIB_SRC)/thermophysicalModels/basic/lnInclude \
+    -I$(LIB_SRC)/thermophysicalModels/specie/lnInclude
+
+LIB_LIBS = \
+    -L$(FOAM_USER_LIBBIN) \
+    -lneTCLib_2T \
+    -lneTCspecie_2T \
+    -lfiniteVolume \
+    -lcompressibleTransportModels \
+    -lfluidThermophysicalModels \
+    -lspecie

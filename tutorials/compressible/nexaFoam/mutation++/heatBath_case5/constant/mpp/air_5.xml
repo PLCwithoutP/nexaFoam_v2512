@@ -1,0 +1,11 @@
+<!-- Neutral 5 species air mixture -->
+<mixture name="air_5"
+         mechanism="air5_Park"
+         state_model="ChemNonEq1T"
+         thermo_db="NASA-9">
+
+    <species>
+        N O NO N2 O2
+    </species>
+
+</mixture>
