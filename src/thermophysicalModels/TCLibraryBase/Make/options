@@ -4,11 +4,13 @@ ifdef WITH_MUTATION_PP
     EIGEN_INC  = -I$(EIGEN_INCLUDE)
     MPP_LINK   = -L$(MPP_LIB) -lmutation++ -Wl,-rpath,$(MPP_LIB)
     MPP_DEFINE = -DWITH_MUTATION_PP
+    MPP_USER_LIBS = -lmutationppInterface 
 else
     MPP_INC    =
     EIGEN_INC  =
     MPP_LINK   =
     MPP_DEFINE =
+    MPP_USER_LIBS = 
 endif
 
 EXE_INC = \
@@ -37,9 +39,9 @@ EXE_INC = \
 LIB_LIBS = \
     $(MPP_LINK)                                                         \
     -L$(FOAM_USER_LIBBIN)                                               \
+    $(MPP_USER_LIBS)                                                  \
     -lneTCLib_2T                                                        \
     -lneTCspecie_2T                                                     \
-    -lmutationppInterface                                               \
     -lneTCChemistryModel                                                \
     -lneReactionThermophysicalModels                                    \
     -lfiniteVolume                                                      \

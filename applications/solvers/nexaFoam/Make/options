@@ -2,9 +2,11 @@
 ifdef WITH_MUTATION_PP
     MPP_LINK   = -L$(MPP_LIB) -lmutation++ -Wl,-rpath,$(MPP_LIB)
     MPP_DEFINE = -DWITH_MUTATION_PP
+    MPP_USER_LIBS = -lmutationppInterface
 else
     MPP_LINK   =
     MPP_DEFINE =
+    MPP_USER_LIBS =
 endif
 
 EXE_INC = \
@@ -32,7 +34,7 @@ EXE_INC = \
 
 EXE_LIBS = \
     $(MPP_LINK) \
-    -lmutationppInterface \
+    $(MPP_USER_LIBS) \
     -L$(FOAM_USER_LIBBIN) \
     -lneTCLib_2T \
     -lneTCspecie_2T \

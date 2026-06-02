@@ -42,16 +42,18 @@
 ifdef WITH_MUTATION_PP
  MPP_LINK = -L$(MPP_LIB) -lmutation++ -Wl,-rpath,$(MPP_LIB)
  MPP_DEFINE = -DWITH_MUTATION_PP
+ MPP_USER_LIBS = -lmutationppInterface
 else
  MPP_LINK =
  MPP_DEFINE =
+ MPP_USER_LIBS =
 endif
 
 EXE_INC = $(MPP_DEFINE) -IBCs/lnInclude -I../../../src/TurbulenceModels/turbulenceModels/lnInclude -I../../../src/TurbulenceModels/compressible/lnInclude -I../../../src/thermophysicalModels/neTCLib/2T/basic/lnInclude -I../../../src/thermophysicalModels/neTCLib/2T/specie/lnInclude -I../../../src/thermophysicalModels/neTCLib/2T/reactionThermo/lnInclude -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable -Wno-unused-but-set-variable -Wno-reorder -I../../../src/thermophysicalModels/TCLibraryBase/lnInclude -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude -I$(LIB_SRC)/transportModels/compressible/lnInclude -I$(LIB_SRC)/thermophysicalModels/basic/lnInclude -I$(LIB_SRC)/thermophysicalModels/specie/lnInclude -I$(LIB_SRC)/TurbulenceModels/turbulenceModels/lnInclude -I$(LIB_SRC)/TurbulenceModels/compressible/lnInclude -I$(LIB_SRC)/dynamicFvMesh/lnInclude
-# 32 "Make/options"
+# 34 "Make/options"
 
-EXE_LIBS = $(MPP_LINK) -lmutationppInterface -L$(FOAM_USER_LIBBIN) -lneTCLib_2T -lneTCspecie_2T -lTCLibraryBase -lneReactionThermophysicalModels -lneTCChemistryModel -lfiniteVolume -lfvOptions -lmeshTools -lcompressibleTransportModels -lfluidThermophysicalModels -lspecie -lnexaFoam -lturbulenceModels -lthermoTools -ldynamicFvMesh -ltopoChangerFvMesh
-# 53 "Make/options"
+EXE_LIBS = $(MPP_LINK) $(MPP_USER_LIBS) -L$(FOAM_USER_LIBBIN) -lneTCLib_2T -lneTCspecie_2T -lTCLibraryBase -lneReactionThermophysicalModels -lneTCChemistryModel -lfiniteVolume -lfvOptions -lmeshTools -lcompressibleTransportModels -lfluidThermophysicalModels -lspecie -lnexaFoam -lturbulenceModels -lthermoTools -ldynamicFvMesh -ltopoChangerFvMesh
+# 55 "Make/options"
 
 
 # options
