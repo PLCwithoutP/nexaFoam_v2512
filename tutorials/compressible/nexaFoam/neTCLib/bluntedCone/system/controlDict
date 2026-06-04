@@ -14,6 +14,8 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+#include "../0/initialConditions"
+
 application     nexaFoam;
 
 startFrom       latestTime;
@@ -22,13 +24,13 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         1e-09;
+endTime         2e-05;
 
 deltaT          1e-10;
 
 writeControl    adjustableRunTime;
 
-writeInterval   1e-09;
+writeInterval   1e-07;
 
 purgeWrite      0;
 
@@ -55,6 +57,36 @@ maxDeltaT       1e-05;
 functions
 {
 
+    cp_surface
+    {
+        type            nePressureCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+
+        rhoInf          5.113e-4;
+        magUInf         2764.5;
+
+        patches         (cone);      // omit for all walls
+        writeControl    writeTime;
+        log             yes;
+    }
+
+    coneSurface
+    {
+        type            surfaces;
+        libs            ("libsampling.so");
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        interpolate     false;       // face-centre values, no blending
+        fields          (p cp_surface);
+        surfaces
+        (
+            cone
+            {
+                type    patch;
+                patches (cone);
+            }
+        );
+    }
 }
 
 

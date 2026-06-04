@@ -34,6 +34,9 @@ dash_line " Cleaning Thermochemical Library Interface "
 printf '%*s\n' "$(tput cols)" '' | tr ' ' '#'
 cd ../TCLibraryBase
 ./Allwclean
+dash_line " Cleaning function objects "
+cd ../../functionObjects/field
+wclean libso
 printf '%*s\n' "$(tput cols)" '' | tr ' ' '#'
 dash_line " Cleaning is completed "
 echo " "

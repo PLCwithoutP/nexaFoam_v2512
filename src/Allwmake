@@ -2,6 +2,8 @@
 
 source ~/.bashrc
 
+SRC_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
 dash_line() {
   msg="$*"
   # Detect terminal width with fallbacks
@@ -61,6 +63,9 @@ printf '%*s\n' "$(tput cols)" '' | tr ' ' '#'
 cd ../TCLibraryBase
 dash_line " Thermochemical Library Interface "
 ./Allwmake
+printf '%*s\n' "$(tput cols)" '' | tr ' ' '#'
+dash_line " nexaFoam field function objects "
+( cd "$SRC_ROOT/functionObjects/field" && wmake libso )
 printf '%*s\n' "$(tput cols)" '' | tr ' ' '#'
 dash_line " Compilation is completed "
 echo " "

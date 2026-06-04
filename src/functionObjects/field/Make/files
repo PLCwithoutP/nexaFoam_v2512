@@ -1,0 +1,3 @@
+nePressureCoefficient/nePressureCoefficient.C
+
+LIB = $(FOAM_USER_LIBBIN)/libnexaFieldFunctionObjects
