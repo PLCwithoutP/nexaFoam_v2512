@@ -453,3 +453,16 @@ surfaceScalarField qVibPhi
 );
 
 qVibPhi.setOriented(true);
+
+volScalarField muLam
+(
+    IOobject
+    (
+        "muLam",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    thermo2T.mu()
+);

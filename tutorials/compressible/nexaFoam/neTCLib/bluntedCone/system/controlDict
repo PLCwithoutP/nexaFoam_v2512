@@ -24,7 +24,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         2e-05;
+endTime         2e-04;
 
 deltaT          1e-10;
 
@@ -69,7 +69,26 @@ functions
         writeControl    writeTime;
         log             yes;
     }
-
+    
+    tau_surface
+    {
+        type            neWallShearStress;
+        libs            ("libnexaFieldFunctionObjects.so");
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    cf_surface
+    {
+        type            neFrictionCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          5.113e-4;
+        magUInf         2764.5;
+        wallShearStress tau_surface;
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
     coneSurface
     {
         type            surfaces;
@@ -77,7 +96,7 @@ functions
         writeControl    writeTime;
         surfaceFormat   raw;
         interpolate     false;       // face-centre values, no blending
-        fields          (p cp_surface);
+        fields          (p muLam cp_surface tau_surface cf_surface);
         surfaces
         (
             cone

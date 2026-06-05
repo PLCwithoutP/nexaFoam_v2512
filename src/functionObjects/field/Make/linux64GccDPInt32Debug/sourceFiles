@@ -1,4 +1,6 @@
 SOURCE = \
 nePressureCoefficient/nePressureCoefficient.C \
+neWallShearStress/neWallShearStress.C \
+neFrictionCoefficient/neFrictionCoefficient.C \
 
 # sources

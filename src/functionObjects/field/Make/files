@@ -1,3 +1,5 @@
 nePressureCoefficient/nePressureCoefficient.C
+neWallShearStress/neWallShearStress.C
+neFrictionCoefficient/neFrictionCoefficient.C
 
 LIB = $(FOAM_USER_LIBBIN)/libnexaFieldFunctionObjects
