@@ -466,3 +466,16 @@ volScalarField muLam
     ),
     thermo2T.mu()
 );
+
+volScalarField kappaPP
+(
+    IOobject
+    (
+        "kappaPP",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    thermo2T.kappaTR()          
+);

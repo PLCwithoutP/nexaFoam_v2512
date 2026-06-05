@@ -225,6 +225,7 @@ int main(int argc, char *argv[])
         }
 
         muLam = thermo2T.mu();
+        kappaPP = thermo2T.kappaTR();
         volTensorField tauMC("tauMC", muLam*dev2(Foam::T(fvc::grad(U))));
 
 
