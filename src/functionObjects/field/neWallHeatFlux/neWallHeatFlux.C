@@ -88,6 +88,72 @@ Foam::functionObjects::neWallHeatFlux::lookupOrReadScalar
 }
 
 
+bool Foam::functionObjects::neWallHeatFlux::fieldAvailable
+(
+    const word& fieldName
+) const
+{
+    // Already constructed (runtime): present in the registry.
+    if (mesh_.foundObject<volScalarField>(fieldName))
+    {
+        return true;
+    }
+
+    // Otherwise (post-process): non-fatal check that a readable field file of
+    // the right type exists in the current time directory.
+    IOobject io
+    (
+        fieldName,
+        mesh_.time().timeName(),
+        mesh_,
+        IOobject::MUST_READ,
+        IOobject::NO_WRITE,
+        IOobject::NO_REGISTER
+    );
+
+    return io.typeHeaderOk<volScalarField>(true);
+}
+
+
+void Foam::functionObjects::neWallHeatFlux::addConductionTerm
+(
+    volScalarField::Boundary& qBf,
+    const volScalarField& kappa,
+    const volScalarField& T,
+    const bool useWallT,
+    const scalar wallT
+) const
+{
+    const surfaceScalarField::Boundary& dcBf =
+        mesh_.deltaCoeffs().boundaryField();
+
+    for (const label patchi : patchSet_)
+    {
+        // Near-wall cell conductivity: the thermo does not reliably populate
+        // the boundary value of kappa, but the adjacent cell value is valid.
+        const scalarField kw(kappa.boundaryField()[patchi].patchInternalField());
+
+        // Explicit wall-normal gradient from stored values, independent of the
+        // patch BC's snGrad() (which a jump/slip BC does not evaluate correctly
+        // under -postProcess). When a fixed wall temperature is supplied it is
+        // used as the surface reference instead of the stored face value.
+        const fvPatchScalarField& Tp = T.boundaryField()[patchi];
+        const scalarField Tface
+        (
+            useWallT
+          ? scalarField(Tp.size(), wallT)   // fixed solid wall temperature
+          : scalarField(Tp)                  // stored wall-face value
+        );
+        const scalarField Tcell(Tp.patchInternalField()); // adjacent cell T
+        const scalarField& dc = dcBf[patchi];
+
+        // Accumulate; positive = heat into the wall (surface heating):
+        //   q = -kappa * snGrad_out(T) = kappa * (T_cell - T_face) / delta
+        qBf[patchi] += kw*(Tcell - Tface)*dc;
+    }
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
@@ -104,8 +170,11 @@ Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
     Twall_(0.0),
     haveTwall_(false),
     twoTemperature_(false),
+    autoVib_(true),
     kappaVeName_("kappaVe"),
     TVibName_("TVib"),
+    TVibWall_(0.0),
+    haveTVibWall_(false),
     resultName_(name),
     patchSet_()
 {
@@ -151,10 +220,32 @@ bool Foam::functionObjects::neWallHeatFlux::read(const dictionary& dict)
     // -postProcess (so the gas-side gradient on disk is zero).
     haveTwall_ = dict.readIfPresent<scalar>("Twall", Twall_);
 
-    twoTemperature_ = dict.getOrDefault<bool>("twoTemperature", false);
-    kappaVeName_    = dict.getOrDefault<word>("kappaVe", "kappaVe");
-    TVibName_       = dict.getOrDefault<word>("TVib", "TVib");
-    resultName_     = dict.getOrDefault<word>("result", this->name());
+    kappaVeName_ = dict.getOrDefault<word>("kappaVe", "kappaVe");
+    TVibName_    = dict.getOrDefault<word>("TVib", "TVib");
+
+    // Optional fixed wall vibrational temperature, analogous to Twall, for
+    // jump/slip TVib walls under -postProcess.
+    haveTVibWall_ = dict.readIfPresent<scalar>("TVibWall", TVibWall_);
+
+    // Vibrational-conduction control:
+    //   - "twoTemperature" present  -> honour it exactly (true/false)
+    //   - "twoTemperature" absent   -> auto: add the vib term iff both the
+    //                                  vib conductivity and vib temperature
+    //                                  fields can be found at run time.
+    // This lets one dictionary serve 1T, 2T, pure-gas, mixture, reacting and
+    // non-reacting cases without edits.
+    if (dict.found("twoTemperature"))
+    {
+        twoTemperature_ = dict.get<bool>("twoTemperature");
+        autoVib_ = false;
+    }
+    else
+    {
+        twoTemperature_ = false;
+        autoVib_ = true;
+    }
+
+    resultName_ = dict.getOrDefault<word>("result", this->name());
 
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
     patchSet_ = pbm.patchSet(dict.getOrDefault<wordRes>("patches", wordRes()));
@@ -197,59 +288,42 @@ bool Foam::functionObjects::neWallHeatFlux::execute()
     volScalarField& q =
         mesh_.lookupObjectRef<volScalarField>(resultName_);
 
-    tmp<volScalarField> tkTR  = lookupOrReadScalar(kappaTRName_);
-    tmp<volScalarField> tTTR  = lookupOrReadScalar(TTRName_);
-    const volScalarField& kTR = tkTR();
-    const volScalarField& TTR = tTTR();
-
-    // Geometric 1/delta on each boundary face (cell-centre to face).
-    const surfaceScalarField::Boundary& dcBf =
-        mesh_.deltaCoeffs().boundaryField();
-
     volScalarField::Boundary& qBf = q.boundaryFieldRef();
 
+    // Reset wall patches before accumulating the conduction terms.
     for (const label patchi : patchSet_)
     {
-        // Near-wall cell conductivity: the thermo does not reliably populate
-        // the boundary value of kappa, but the adjacent cell value is valid.
-        const scalarField kw(kTR.boundaryField()[patchi].patchInternalField());
-
-        // Explicit wall-normal gradient from the stored gas-side wall value
-        // and the adjacent cell value. This avoids the patch BC's snGrad(),
-        // which a jump/slip BC does not evaluate correctly under -postProcess
-        // (its mixed-BC coefficients are not in the field file).
-        const fvPatchScalarField& TTRp = TTR.boundaryField()[patchi];
-        const scalarField Tface
-        (
-            haveTwall_
-          ? scalarField(TTRp.size(), Twall_)  // fixed solid wall temperature
-          : scalarField(TTRp)                 // stored gas wall-face value
-        );
-        const scalarField Tcell(TTRp.patchInternalField()); // adjacent cell T
-        const scalarField& dc = dcBf[patchi];
-
-        // Heat flux into the wall, positive = surface heating:
-        //   q = -kappa * snGrad_out(T) = kappa * (T_cell - T_face) / delta
-        qBf[patchi] = kw*(Tcell - Tface)*dc;
+        qBf[patchi] = 0.0;
     }
 
-    if (twoTemperature_)
+    // --- Translational-rotational conduction (always present) ---
     {
-        tmp<volScalarField> tkVe  = lookupOrReadScalar(kappaVeName_);
-        tmp<volScalarField> tTVib = lookupOrReadScalar(TVibName_);
-        const volScalarField& kVe  = tkVe();
-        const volScalarField& TVib = tTVib();
+        tmp<volScalarField> tkTR = lookupOrReadScalar(kappaTRName_);
+        tmp<volScalarField> tTTR = lookupOrReadScalar(TTRName_);
+        addConductionTerm(qBf, tkTR(), tTTR(), haveTwall_, Twall_);
+    }
 
-        for (const label patchi : patchSet_)
+    // --- Vibrational-electronic conduction (two-temperature only) ---
+    // Included when explicitly requested, or (auto mode) whenever both the
+    // vibrational conductivity and vibrational temperature fields exist. In
+    // 1T runs the fields are absent (or published as zero), so the term is
+    // skipped or contributes nothing - the object is safe in every mode.
+    const bool wantVib = autoVib_ ? true : twoTemperature_;
+
+    if (wantVib)
+    {
+        if (fieldAvailable(kappaVeName_) && fieldAvailable(TVibName_))
         {
-            const scalarField kw(kVe.boundaryField()[patchi].patchInternalField());
-
-            const fvPatchScalarField& TVp = TVib.boundaryField()[patchi];
-            const scalarField Tface(TVp);
-            const scalarField Tcell(TVp.patchInternalField());
-            const scalarField& dc = dcBf[patchi];
-
-            qBf[patchi] = qBf[patchi] + kw*(Tcell - Tface)*dc;
+            tmp<volScalarField> tkVe  = lookupOrReadScalar(kappaVeName_);
+            tmp<volScalarField> tTVib = lookupOrReadScalar(TVibName_);
+            addConductionTerm(qBf, tkVe(), tTVib(), haveTVibWall_, TVibWall_);
+        }
+        else if (!autoVib_)
+        {
+            WarningInFunction
+                << "twoTemperature was requested but '" << kappaVeName_
+                << "' and/or '" << TVibName_ << "' are unavailable; "
+                << "the vibrational term is omitted." << endl;
         }
     }
 

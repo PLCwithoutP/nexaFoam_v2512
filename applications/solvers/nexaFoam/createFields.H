@@ -479,3 +479,22 @@ volScalarField kappaPP
     ),
     thermo2T.kappaTR()          
 );
+
+volScalarField kappaVe
+(
+    IOobject
+    (
+        "kappaVe",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    0.0*kappaPP            // inherits W/(m·K) dimensions, initialised to zero
+);
+
+if (use2T)
+{
+    kappaVe = thermo2T.kappaVib();   
+}
+kappaVe.correctBoundaryConditions();

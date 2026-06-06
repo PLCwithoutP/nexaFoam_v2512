@@ -30,9 +30,13 @@ Description
     \f]
 
     Positive into the wall (cold-wall heating). The vibrational term is added
-    when twoTemperature is true. Conductivities are read from written fields
-    (publish them in the solver, like muLam); temperatures from TTR / TVib.
-    Field lookups only, so the object works at runtime and under
+    in two-temperature runs: either when twoTemperature is set true, or
+    automatically (when twoTemperature is omitted) whenever both the
+    vibrational conductivity and temperature fields are present. It is skipped
+    safely in 1T / pure-gas / non-reacting runs, so a single configuration
+    serves every case. Conductivities are read from written fields (publish
+    them in the solver, like muLam); temperatures from TTR / TVib. Field
+    lookups only, so the object works at runtime and under
     nexaFoam -postProcess / postProcess.
 
 Usage
@@ -42,7 +46,7 @@ Usage
         type            neWallHeatFlux;
         libs            ("libnexaFieldFunctionObjects.so");
 
-        kappaTR         kappaTR;    // optional, default "kappaTR"
+        kappaTR         kappaPP;    // conductivity field name (default "kappaTR")
         TTR             TTR;        // optional, default "TTR"
 
         // Optional: reference the wall-normal gradient to a fixed solid wall
@@ -51,9 +55,12 @@ Usage
         // collapses onto the near-wall cell (zero gas-side gradient on disk).
         // Twall           297.2;
 
-        twoTemperature  false;      // optional, default false
-        kappaVe         kappaVe;    // used only if twoTemperature
-        TVib            TVib;       // used only if twoTemperature
+        // Vibrational term (2T). Omit twoTemperature for auto-detect: the term
+        // is added whenever kappaVe and TVib are found, and skipped otherwise.
+        // twoTemperature  true;     // optional; force on/off
+        kappaVe         kappaVe;    // vib conductivity field (default "kappaVe")
+        TVib            TVib;       // vib temperature field (default "TVib")
+        // TVibWall        297.2;    // optional fixed wall vib temperature
 
         patches         (cone);     // optional, default = all wall patches
         result          wallHeatFlux; // optional, default = <function name>
@@ -72,7 +79,7 @@ SourceFiles
 
 #include "fvMeshFunctionObject.H"
 #include "writeFile.H"
-#include "volFieldsFwd.H"
+#include "volFields.H"
 #include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -106,14 +113,23 @@ class neWallHeatFlux
         //- True when Twall was supplied in the dictionary
         bool haveTwall_;
 
-        //- Add the vibrational conduction term
+        //- Add the vibrational conduction term (used when not in auto mode)
         bool twoTemperature_;
+
+        //- Auto-detect the vibrational term from field availability
+        bool autoVib_;
 
         //- Name of the vibrational conductivity field
         word kappaVeName_;
 
         //- Name of the vibrational temperature field
         word TVibName_;
+
+        //- Optional fixed wall vibrational temperature [K]
+        scalar TVibWall_;
+
+        //- True when TVibWall was supplied in the dictionary
+        bool haveTVibWall_;
 
         //- Name of the result field stored on the registry
         word resultName_;
@@ -130,6 +146,21 @@ class neWallHeatFlux
         //- Return a registered scalar field, or read it from the current time
         //  directory if absent (post-process mode).
         tmp<volScalarField> lookupOrReadScalar(const word& fieldName) const;
+
+        //- Non-fatal test that a scalar field is in the registry or on disk
+        bool fieldAvailable(const word& fieldName) const;
+
+        //- Accumulate kappa*(T_cell - T_face)/delta into the wall boundary of
+        //  the result field. When useWallT is true, wallT is used as the
+        //  surface reference instead of the stored boundary face value.
+        void addConductionTerm
+        (
+            volScalarField::Boundary& qBf,
+            const volScalarField& kappa,
+            const volScalarField& T,
+            const bool useWallT,
+            const scalar wallT
+        ) const;
 
         //- No copy construct / assignment
         neWallHeatFlux(const neWallHeatFlux&) = delete;

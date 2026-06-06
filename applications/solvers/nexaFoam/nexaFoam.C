@@ -228,6 +228,10 @@ int main(int argc, char *argv[])
         kappaPP = thermo2T.kappaTR();
         volTensorField tauMC("tauMC", muLam*dev2(Foam::T(fvc::grad(U))));
 
+        if (use2T)
+        {
+            kappaVe = thermo2T.kappaVib();
+        }
 
         #include "Equations/continuityEquation.H"
 
