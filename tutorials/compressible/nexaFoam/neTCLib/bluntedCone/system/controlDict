@@ -30,7 +30,7 @@ deltaT          1e-10;
 
 writeControl    adjustableRunTime;
 
-writeInterval   1e-07;
+writeInterval   1e-08;
 
 purgeWrite      0;
 
@@ -89,6 +89,28 @@ functions
         writeControl    writeTime;
     }
     
+    wallHeatFlux
+    {
+        type            neWallHeatFlux;
+        libs            ("libnexaFieldFunctionObjects.so");
+        kappaTR         kappaPP;
+        TTR             TTR;
+        twoTemperature  false;       // true + kappaVe/TVib for the 2T cases
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    StantonNumber
+    {
+        type            neStantonNumber;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          5.113e-4;
+        magUInf         2764.5;
+        wallHeatFlux    wallHeatFlux;
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
     coneSurface
     {
         type            surfaces;
@@ -96,7 +118,7 @@ functions
         writeControl    writeTime;
         surfaceFormat   raw;
         interpolate     false;       // face-centre values, no blending
-        fields          (p muLam cp_surface tau_surface cf_surface);
+        fields          (p muLam cp_surface tau_surface cf_surface kappaPP wallHeatFlux StantonNumber);
         surfaces
         (
             cone
