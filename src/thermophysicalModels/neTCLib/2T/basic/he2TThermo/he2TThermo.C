@@ -1820,8 +1820,7 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaTR() const
                 "zero",
                 dimEnergy/(dimTime*dimLength*dimTemperature),
                 0.0
-            ),
-            this->TTR_.boundaryField().types()
+            )
         )
     );
 
@@ -1847,6 +1846,8 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaTR() const
     {
         K.boundaryFieldRef()[patchi] = this->kappaTR(patchi);
     }
+
+
 
     K.rename("kappaTR");
     return tK;
@@ -1900,8 +1901,7 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib() const
                 "zero",
                 dimEnergy/(dimTime*dimLength*dimTemperature),
                 0.0
-            ),
-            this->TVib_.boundaryField().types()
+            )
         )
     );
 
@@ -1977,8 +1977,7 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::alphaheTR() const
                 "zero",
                 this->alpha_.dimensions(),
                 0.0
-            ),
-            this->TTR_.boundaryField().types()
+            )
         )
     );
 

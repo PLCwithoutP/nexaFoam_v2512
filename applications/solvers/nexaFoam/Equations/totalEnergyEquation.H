@@ -32,6 +32,7 @@ eTR =
   - eV;
 
 eTR.correctBoundaryConditions();
+
 thermo2T.correct();
 
 rhoE.boundaryFieldRef() ==
@@ -41,8 +42,6 @@ rhoE.boundaryFieldRef() ==
       + eV.boundaryField()
       + 0.5*magSqr(U.boundaryField())
     );
-
-
 
 // ================================================================
 // Stage 3 — Viscous correction
@@ -117,6 +116,7 @@ if (!inviscid)
         thermo2T.alphaheTR() * thermo2T.gamma()
     );
 
+    
     solve
     (
         fvm::ddt(rho, eTR) - fvc::ddt(rho, eTR)
