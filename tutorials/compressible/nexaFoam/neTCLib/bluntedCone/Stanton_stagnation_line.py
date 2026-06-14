@@ -17,7 +17,7 @@ AXIS = 0   # body symmetry axis index: 0 = x, 1 = y, 2 = z
 
 RAW_GLOB = "postProcessing/coneSurface/*/StantonNumber_cone.raw"
 
-REFERENCE_CSV = None        # optional "axial_cm, St"
+REFERENCE_CSV = "hy2Foam_St.csv"        # optional "axial_cm, St"
 OUTPUT_PNG = "st_cone.png"
 # --------------------------------------------------------------------------- #
 
@@ -78,11 +78,11 @@ def main():
     if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
         ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
         ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="Casseau (ref.)")
+                label="hy2Foam")
 
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(r"Stanton number  $St$")
-    ax.set_xlim(0.0, float(axial_cm.max()))
+    ax.set_xlim(0.0, 4.0)
     ax.set_ylim(bottom=0.0)
     ax.set_title(r"non-reacting $\mathrm{N_2}$")
     ax.legend(frameon=True)

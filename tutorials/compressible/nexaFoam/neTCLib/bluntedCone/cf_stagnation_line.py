@@ -26,7 +26,7 @@ AXIS = 0
 RAW_GLOB = "postProcessing/coneSurface/*/cf_surface_cone.raw"
 
 # Optional digitized reference: CSV "axial_cm, Cf". None to skip.
-REFERENCE_CSV = None       # e.g. "casseau_n2_cf.csv"
+REFERENCE_CSV = "hy2Foam_cf.csv"       # e.g. "casseau_n2_cf.csv"
 
 OUTPUT_PNG = "cf_cone_comparison.png"
 # --------------------------------------------------------------------------- #
@@ -89,11 +89,11 @@ def main():
     if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
         ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
         ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="Casseau (ref.)")
+                label="hy2Foam")
 
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(r"Skin-friction coefficient  $C_f$")
-    ax.set_xlim(0.0, float(axial_cm.max()))
+    ax.set_xlim(0.0, 4.0)
     ax.set_ylim(bottom=0.0)
     ax.set_title(r"non-reacting $\mathrm{N_2}$")
     ax.legend(frameon=True)

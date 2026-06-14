@@ -44,7 +44,7 @@ NORMALIZE_TO_STAGNATION = False
 # Optional digitized reference: CSV with two columns "axial_cm, Cp".
 # Set to None to skip. If NORMALIZE_TO_STAGNATION is True the reference is
 # assumed to already be on the 0..1 scale of the published figure.
-REFERENCE_CSV = None       # e.g. "casseau_n2_cp.csv"
+REFERENCE_CSV = "hy2Foam_cp.csv"       # e.g. "casseau_n2_cp.csv"
 
 OUTPUT_PNG = "cp_cone_comparison.png"
 # --------------------------------------------------------------------------- #
@@ -116,13 +116,12 @@ def main():
     if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
         ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
         ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="Casseau (ref.)")
+                label="hy2Foam")
 
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(ylabel)
-    ax.set_xlim(0.0, float(axial_cm.max()))
-    if NORMALIZE_TO_STAGNATION:
-        ax.set_ylim(0.0, 1.05)
+    ax.set_xlim(0.0, 4.0)
+    ax.set_ylim(0.0, 1.0)
     ax.set_title(r"non-reacting $\mathrm{N_2}$")
     ax.legend(frameon=True)
     fig.tight_layout()
