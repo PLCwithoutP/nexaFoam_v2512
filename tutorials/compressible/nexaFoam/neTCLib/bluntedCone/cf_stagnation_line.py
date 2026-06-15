@@ -26,7 +26,10 @@ AXIS = 0
 RAW_GLOB = "postProcessing/coneSurface/*/cf_surface_cone.raw"
 
 # Optional digitized reference: CSV "axial_cm, Cf". None to skip.
-REFERENCE_CSV = "hy2Foam_cf.csv"       # e.g. "casseau_n2_cf.csv"
+REFERENCES = [
+    ("hy2Foam_cf.csv", "-", "None", "k", "CFD: hy2Foam"),    
+    ("monacoDSMC_cf.csv", "none", "^", "k", "DSMC: MONACO") 
+]
 
 OUTPUT_PNG = "cf_cone_comparison.png"
 # --------------------------------------------------------------------------- #
@@ -84,12 +87,14 @@ def main():
     axial_cm, cf = axial_cm[order], cf[order]
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
-    ax.plot(axial_cm, cf, "-", color="k", lw=1.4, label="nexaFoam")
+    ax.plot(axial_cm, cf, "-", color="r", lw=1.4, label="CFD: nexaFoam")
 
-    if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
-        ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
-        ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="hy2Foam")
+    for ref_file, ls, marker, color, ref_label in REFERENCES:
+            if ref_file and os.path.exists(ref_file):
+                ref_data = np.loadtxt(ref_file, delimiter=",")
+                ax.plot(ref_data[:, 0], ref_data[:, 1], 
+                        linestyle=ls, marker=marker, color=color, 
+                        ms=5, lw=1.4, label=ref_label)
 
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(r"Skin-friction coefficient  $C_f$")

@@ -17,7 +17,11 @@ AXIS = 0   # body symmetry axis index: 0 = x, 1 = y, 2 = z
 
 RAW_GLOB = "postProcessing/coneSurface/*/StantonNumber_cone.raw"
 
-REFERENCE_CSV = "hy2Foam_St.csv"        # optional "axial_cm, St"
+REFERENCES = [
+    ("hy2Foam_St.csv", "-", "None", "k", "CFD: hy2Foam"),    
+    ("monacoDSMC_St.csv", "none", "^", "k", "DSMC: MONACO") 
+]
+
 OUTPUT_PNG = "st_cone.png"
 # --------------------------------------------------------------------------- #
 
@@ -73,17 +77,19 @@ def main():
     axial_cm, st = axial_cm[order], st[order]
 
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
-    ax.plot(axial_cm, st, "-", color="k", lw=1.4, label="nexaFoam")
+    ax.plot(axial_cm, st, "-", color="r", lw=1.4, label="CFD: nexaFoam")
 
-    if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
-        ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
-        ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="hy2Foam")
-
+    for ref_file, ls, marker, color, ref_label in REFERENCES:
+            if ref_file and os.path.exists(ref_file):
+                ref_data = np.loadtxt(ref_file, delimiter=",")
+                ax.plot(ref_data[:, 0], ref_data[:, 1], 
+                        linestyle=ls, marker=marker, color=color, 
+                        ms=5, lw=1.4, label=ref_label)
+                        
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(r"Stanton number  $St$")
     ax.set_xlim(0.0, 4.0)
-    ax.set_ylim(bottom=0.0)
+    ax.set_ylim(0.0, 0.2)
     ax.set_title(r"non-reacting $\mathrm{N_2}$")
     ax.legend(frameon=True)
     fig.tight_layout()

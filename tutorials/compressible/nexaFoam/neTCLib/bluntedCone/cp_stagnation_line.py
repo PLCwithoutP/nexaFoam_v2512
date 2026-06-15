@@ -44,7 +44,10 @@ NORMALIZE_TO_STAGNATION = False
 # Optional digitized reference: CSV with two columns "axial_cm, Cp".
 # Set to None to skip. If NORMALIZE_TO_STAGNATION is True the reference is
 # assumed to already be on the 0..1 scale of the published figure.
-REFERENCE_CSV = "hy2Foam_cp.csv"       # e.g. "casseau_n2_cp.csv"
+REFERENCES = [
+    ("hy2Foam_cp.csv", "-", "None", "k", "CFD: hy2Foam"),    
+    ("monacoDSMC_cp.csv", "none", "^", "k", "DSMC: MONACO") 
+]
 
 OUTPUT_PNG = "cp_cone_comparison.png"
 # --------------------------------------------------------------------------- #
@@ -111,13 +114,15 @@ def main():
 
     # ------------------------------ plot ----------------------------------- #
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
-    ax.plot(axial_cm, cp_plot, "-", color="k", lw=1.4, label="nexaFoam")
+    ax.plot(axial_cm, cp_plot, "-", color="r", lw=1.4, label="CFD: nexaFoam")
 
-    if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
-        ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
-        ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="hy2Foam")
-
+    for ref_file, ls, marker, color, ref_label in REFERENCES:
+            if ref_file and os.path.exists(ref_file):
+                ref_data = np.loadtxt(ref_file, delimiter=",")
+                ax.plot(ref_data[:, 0], ref_data[:, 1], 
+                        linestyle=ls, marker=marker, color=color, 
+                        ms=5, lw=1.4, label=ref_label)
+                        
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(ylabel)
     ax.set_xlim(0.0, 4.0)

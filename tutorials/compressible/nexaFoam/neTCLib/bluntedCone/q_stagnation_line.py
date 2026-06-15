@@ -21,7 +21,11 @@ RAW_GLOB = "postProcessing/coneSurface/*/wallHeatFlux_cone.raw"
 SCALE = 1.0e-3
 YLABEL = r"Wall heat flux  $q_w$  [kW/m$^2$]"
 
-REFERENCE_CSV = None        # optional "axial_cm, q"
+REFERENCES = [
+    #("hy2Foam_ref.csv", "^", "hy2Foam"),
+    #("casseau_n2_ref.csv", "s", "Casseau 2016")
+]
+
 OUTPUT_PNG = "q_cone.png"
 # --------------------------------------------------------------------------- #
 
@@ -79,10 +83,11 @@ def main():
     fig, ax = plt.subplots(figsize=(7.0, 4.5))
     ax.plot(axial_cm, q, "-", color="k", lw=1.4, label="nexaFoam")
 
-    if REFERENCE_CSV and os.path.exists(REFERENCE_CSV):
-        ref = np.loadtxt(REFERENCE_CSV, delimiter=",")
-        ax.plot(ref[:, 0], ref[:, 1], "^", color="k", ms=5, ls="none",
-                label="reference")
+    for ref_file, marker, ref_label in REFERENCES:
+            if ref_file and os.path.exists(ref_file):
+                ref_data = np.loadtxt(ref_file, delimiter=",")
+                ax.plot(ref_data[:, 0], ref_data[:, 1], marker, color="k", ms=5, ls="none",
+                        label=ref_label)
 
     ax.set_xlabel("Axial distance from stagnation point  [cm]")
     ax.set_ylabel(YLABEL)
