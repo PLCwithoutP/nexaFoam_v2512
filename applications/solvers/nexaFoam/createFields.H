@@ -48,6 +48,15 @@ else
     eV.correctBoundaryConditions();
 }
 
+{
+    const label cWall = mesh.boundaryMesh().findPatchID("cone");   // your wall patch name
+    if (cWall >= 0)
+    {
+        Info<< "[BCcheck] cone eV   type = " << eV.boundaryField()[cWall].type()   << nl
+            << "[BCcheck] cone TVib type = " << TVib.boundaryField()[cWall].type() << endl;
+    }
+}
+
 volScalarField rho
 (
     IOobject

@@ -1,0 +1,4 @@
+SOURCE = \
+nexaFoam.C \
+
+# sources

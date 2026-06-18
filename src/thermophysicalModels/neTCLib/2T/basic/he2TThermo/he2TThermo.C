@@ -31,6 +31,8 @@ License
 #include "mixedEnergyFvPatchScalarField.H"
 #include "gradient2TEnergyFvPatchScalarField.H"
 #include "mixed2TEnergyFvPatchScalarField.H"
+#include "gradientVibEnergyFvPatchScalarField.H"
+#include "mixedVibEnergyFvPatchScalarField.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
@@ -65,6 +67,36 @@ hBoundaryCorrection(volScalarField& e)
     }
 }
 
+template<class Basic2TThermo, class MixtureType>
+void Foam::he2TThermo<Basic2TThermo, MixtureType>::
+eVibBoundaryCorrection(volScalarField& e)
+{
+    volScalarField::Boundary& eBf = e.boundaryFieldRef();
+
+    forAll(eBf, patchi)
+    {
+        if (isA<gradientEnergyFvPatchScalarField>(eBf[patchi]))
+        {
+            refCast<gradientEnergyFvPatchScalarField>(eBf[patchi]).gradient()
+                = eBf[patchi].fvPatchField::snGrad();
+        }
+        else if (isA<mixedEnergyFvPatchScalarField>(eBf[patchi]))
+        {
+            refCast<mixedEnergyFvPatchScalarField>(eBf[patchi]).refGrad()
+                = eBf[patchi].fvPatchField::snGrad();
+        }
+        else if (isA<gradientVibEnergyFvPatchScalarField>(eBf[patchi]))
+        {
+            refCast<gradientVibEnergyFvPatchScalarField>(eBf[patchi]).gradient()
+                = eBf[patchi].fvPatchField::snGrad();
+        }
+        else if (isA<mixedVibEnergyFvPatchScalarField>(eBf[patchi]))
+        {
+            refCast<mixedVibEnergyFvPatchScalarField>(eBf[patchi]).refGrad()
+                = eBf[patchi].fvPatchField::snGrad();
+        }
+    }
+}
 
 template<class Basic2TThermo, class MixtureType>
 void Foam::he2TThermo<Basic2TThermo, MixtureType>::init
@@ -161,7 +193,7 @@ void Foam::he2TThermo<Basic2TThermo, MixtureType>::init
 
     this->hBoundaryCorrection(h);
     this->hBoundaryCorrection(eTR);     
-    this->hBoundaryCorrection(eVib);
+    this->eVibBoundaryCorrection(eVib);
 
     if (p.nOldTimes())
     {
@@ -279,8 +311,8 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::he2TThermo
         ),
         mesh,
         dimEnergy/dimMass,
-        this->hBoundaryTypes(),
-        this->hBoundaryBaseTypes()
+        this->eVibBoundaryTypes(),
+        this->eVibBoundaryBaseTypes()
     )
 {
     init
@@ -395,8 +427,8 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::he2TThermo
         ),
         mesh,
         dimEnergy/dimMass,
-        this->hBoundaryTypes(),
-        this->hBoundaryBaseTypes()
+        this->eVibBoundaryTypes(),
+        this->eVibBoundaryBaseTypes()
     )
 {
     init
@@ -511,8 +543,8 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::he2TThermo
         ),
         mesh,
         dimEnergy/dimMass,
-        this->hBoundaryTypes(),
-        this->hBoundaryBaseTypes()
+        this->eVibBoundaryTypes(),
+        this->eVibBoundaryBaseTypes()
     )
 {
     init

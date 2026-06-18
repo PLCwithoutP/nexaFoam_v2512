@@ -81,6 +81,8 @@ protected:
             //- Correct the enthalpy field boundaries
             void hBoundaryCorrection(volScalarField& h);
 
+            void eVibBoundaryCorrection(volScalarField& eVib);
+
 
 private:
 
@@ -242,7 +244,7 @@ public:
 
             //- Mixture characteristic vibrational temperature [K]
             virtual scalar thetaVib() const;
-            
+
         // Fields derived from thermodynamic state variables
 
             //- Enthalpy
