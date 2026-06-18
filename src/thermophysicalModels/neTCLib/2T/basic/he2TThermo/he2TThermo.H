@@ -240,6 +240,9 @@ public:
                 return eVib_;
             }
 
+            //- Mixture characteristic vibrational temperature [K]
+            virtual scalar thetaVib() const;
+            
         // Fields derived from thermodynamic state variables
 
             //- Enthalpy

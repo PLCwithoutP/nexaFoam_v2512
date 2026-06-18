@@ -174,6 +174,14 @@ protected:
         //- by interrogating the temperature field boundary types
         wordList hBoundaryBaseTypes();
 
+        //- Return the enthalpy/internal energy field boundary types
+        //- by interrogating the temperature field boundary types
+        wordList eVibBoundaryTypes();
+
+        //- Return the enthalpy/internal energy field boundary base types
+        //- by interrogating the temperature field boundary types
+        wordList eVibBoundaryBaseTypes();
+
         //- No copy construct
         basic2TThermo(const basic2TThermo&) = delete;
 
@@ -522,6 +530,9 @@ public:
 
             //- Vibrational Internal Energy [J/kg]
             virtual const volScalarField& eVib() const = 0;
+            
+            //- Mixture characteristic vibrational temperature [K]
+            virtual scalar thetaVib() const = 0;
 
             //- Enthalpy
             //  for given pressure and temperature [J/kg]

@@ -31,11 +31,15 @@ License
 #include "wordIOList.H"
 #include "zeroGradientFvPatchFields.H"
 #include "fixed2TEnergyFvPatchScalarField.H"
+#include "fixedVibEnergyFvPatchScalarField.H"
 #include "gradient2TEnergyFvPatchScalarField.H"
+#include "gradientVibEnergyFvPatchScalarField.H"
 #include "mixed2TEnergyFvPatchScalarField.H"
+#include "mixedVibEnergyFvPatchScalarField.H"
 #include "fixedJumpFvPatchFields.H"
 #include "fixedJumpAMIFvPatchFields.H"
 #include "energy2TJumpFvPatchScalarField.H"
+#include "energyVibJumpFvPatchScalarField.H"
 #include "energy2TJumpAMIFvPatchScalarField.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -226,6 +230,59 @@ Foam::wordList Foam::basic2TThermo::hBoundaryTypes()
         else if (isA<fixedJumpAMIFvPatchScalarField>(tbf[patchi]))
         {
             hbt[patchi] = energy2TJumpAMIFvPatchScalarField::typeName;
+        }
+    }
+
+    return hbt;
+}
+
+Foam::wordList Foam::basic2TThermo::eVibBoundaryBaseTypes()
+{
+    const volScalarField::Boundary& tbf = this->TVib_.boundaryField();   // was TTR_
+
+    wordList hbt(tbf.size());
+
+    forAll(tbf, patchi)
+    {
+        if (isA<fixedJumpFvPatchScalarField>(tbf[patchi]))
+        {
+            const auto& pf =
+                dynamic_cast<const fixedJumpFvPatchScalarField&>(tbf[patchi]);
+            hbt[patchi] = pf.interfaceFieldType();
+        }
+    }
+
+    return hbt;
+}
+
+
+Foam::wordList Foam::basic2TThermo::eVibBoundaryTypes()
+{
+    const volScalarField::Boundary& tbf = this->TVib_.boundaryField();   // was TTR_
+
+    wordList hbt(tbf.types());
+
+    forAll(tbf, patchi)
+    {
+        if (isA<fixedValueFvPatchScalarField>(tbf[patchi]))
+        {
+            hbt[patchi] = fixedVibEnergyFvPatchScalarField::typeName;
+        }
+        else if
+        (
+            isA<zeroGradientFvPatchScalarField>(tbf[patchi])
+         || isA<fixedGradientFvPatchScalarField>(tbf[patchi])
+        )
+        {
+            hbt[patchi] = gradientVibEnergyFvPatchScalarField::typeName;
+        }
+        else if (isA<mixedFvPatchScalarField>(tbf[patchi]))
+        {
+            hbt[patchi] = mixedVibEnergyFvPatchScalarField::typeName;
+        }
+        else if (isA<fixedJumpFvPatchScalarField>(tbf[patchi]))
+        {
+            hbt[patchi] = energyVibJumpFvPatchScalarField::typeName;
         }
     }
 

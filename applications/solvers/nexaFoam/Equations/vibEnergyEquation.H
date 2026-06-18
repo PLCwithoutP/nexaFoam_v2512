@@ -148,11 +148,11 @@ if (use2T)
 
             forAll(TVs, celli)
             {
-                const scalar eVsClamped = max(eVs[celli], scalar(0));
+                const scalar eVsClamped = max(eVs[celli], scalar(20));
 
                 if (eVsClamped < SMALL)
                 {
-                    TVs[celli] = scalar(0);
+                    TVs[celli] = TTRCells[celli];
                     continue;
                 }
 
@@ -182,11 +182,11 @@ if (use2T)
 
                 forAll(pp, facei)
                 {
-                    const scalar eVsClamped = max(peV[facei], scalar(0));
+                    const scalar eVsClamped = max(peV[facei], scalar(20));
 
                     if (eVsClamped < SMALL)
                     {
-                        pTV[facei] = scalar(0);
+                        pTV[facei] = pTTR[facei];
                         continue;
                     }
 
@@ -291,23 +291,52 @@ if (use2T)
     // ============================================================
     if (!inviscid)
     {
-        volScalarField kappaVibField("kappaVibField", thermo2T.kappaVib());
-
-        surfaceScalarField qVibCorr
+        // --- Mixture vibrational specific heat: diffusivity for the eV-laplacian ---
+        volScalarField CvVibMix
         (
-            - fvc::interpolate(kappaVibField)
-            * mesh.magSf()
-            * fvc::snGrad(TVib)
+            IOobject("CvVibMix", runTime.timeName(), mesh,
+                    IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
+            mesh,
+            dimensionedScalar("small", dimEnergy/dimMass/dimTemperature, SMALL)
         );
-        qVibCorr.setOriented(true);
+        {
+            scalarField& cvv = CvVibMix.primitiveFieldRef();
+            forAll(cvv, celli)
+            {
+                scalar sumc = 0.0;
+                forAll(Y_species, speciei)
+                {
+                    if (!vibSpecieActive[speciei])       continue;
+                    if (!mix.isSpecieMolecular(speciei)) continue;   // atomic: no vib mode
 
-        // Capture eV before correction — needed for delta redistribution
+                    const scalar Tv = max(TVibSpecies[speciei][celli], scalar(1));
+                    const scalar x  = 0.5*mix.thetaVib(speciei)/Tv;
+                    const scalar xs = (x < scalar(20)) ? x/Foam::sinh(x) : 0.0;  // ->0 as Tv->0, no sinh overflow
+
+                    // CvVib_s = (R/M_s)*(x/sinh x)^2  — identical to the thermo's SHO CvVib
+                    sumc += Y_species[speciei][celli]*mix.R(speciei)*xs*xs;
+                }
+                cvv[celli] = max(sumc, SMALL);
+            }
+            CvVibMix.correctBoundaryConditions();
+        }
+
+        // kappaVib / CvVib  → units kg/(m·s), the vib analogue of alphavTR for eTR
+        volScalarField alphaVib("alphaVib", thermo2T.kappaVib()/CvVibMix);
+
+        // Capture eV before the conduction correction (for per-species redistribution)
         volScalarField eV_before("eV_before", eV);
 
-        rhoEv -= runTime.deltaT() * fvc::div(qVibCorr);
-        rhoEv.correctBoundaryConditions();
-        eV = rhoEv/rho;
+        // Implicit vibrational conduction — same deferred-correction form as eTR
+        solve
+        (
+            fvm::ddt(rho, eV) - fvc::ddt(rho, eV)
+        - fvm::laplacian(alphaVib, eV)
+        );
+
         eV.correctBoundaryConditions();
+        rhoEv = rho*eV;
+        rhoEv.correctBoundaryConditions();
 
         if (mixtureCheck)
         {

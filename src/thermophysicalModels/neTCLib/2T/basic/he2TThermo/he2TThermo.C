@@ -2037,6 +2037,12 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::alphaheTR
     return tAp;
 }
 
+template<class Basic2TThermo, class MixtureType>
+Foam::scalar Foam::he2TThermo<Basic2TThermo, MixtureType>::thetaVib() const
+{
+    return this->cellMixture(0).ThetaVib();
+}
+
 
 template<class Basic2TThermo, class MixtureType>
 bool Foam::he2TThermo<Basic2TThermo, MixtureType>::read()
