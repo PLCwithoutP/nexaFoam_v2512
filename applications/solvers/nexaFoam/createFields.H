@@ -252,6 +252,17 @@ if (solveSpeciesVib)
         eVs.correctBoundaryConditions();
         rYeV.correctBoundaryConditions();
     }
+
+    eV = dimensionedScalar("zero", eV.dimensions(), 0.0);
+    forAll(Y_species, speciei)
+    {
+        if (!vibSpecieActive[speciei]) continue;
+        eV += rhoYEvibSpecies[speciei]/rho;
+    }
+    eV.correctBoundaryConditions();
+
+    rhoEv = rho*eV;
+    rhoEv.correctBoundaryConditions();
 }
 
 Info<< "Reading field U\n" << endl;

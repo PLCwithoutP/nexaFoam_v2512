@@ -358,32 +358,3 @@ if (use2T)
     }
 }
 
-if (runTime.timeIndex() <= 50)
-{
-    const label cWall = mesh.boundaryMesh().findPatchID("cone");
-
-    // parallel-safe overview of the whole near-wall strip
-    scalar tvMin = GREAT, tvMax = -GREAT, evMin = GREAT, evMax = -GREAT;
-    if (cWall >= 0)
-    {
-        for (const label ci : mesh.boundary()[cWall].faceCells())
-        {
-            tvMin = min(tvMin, TVib[ci]);  tvMax = max(tvMax, TVib[ci]);
-            evMin = min(evMin, eV[ci]);    evMax = max(evMax, eV[ci]);
-        }
-    }
-    reduce(tvMin, minOp<scalar>()); reduce(tvMax, maxOp<scalar>());
-    reduce(evMin, minOp<scalar>()); reduce(evMax, maxOp<scalar>());
-    Info<< "[vib-wall] near-wall TVib[" << tvMin << "," << tvMax << "]"
-        << "  eV[" << evMin << "," << evMax << "]" << endl;
-
-    // single owning-rank cell: cell-vs-face, to separate cooling from clamp
-    if (cWall >= 0 && mesh.boundary()[cWall].size() > 0)
-    {
-        const label ci = mesh.boundary()[cWall].faceCells()[0];
-        Pout<< "[vib-wall] ci=" << ci
-            << " TTR_c=" << TTR[ci] << " TVib_c=" << TVib[ci] << " eV_c=" << eV[ci]
-            << " | TVib_f=" << TVib.boundaryField()[cWall][0]
-            << " eV_f="     << eV.boundaryField()[cWall][0] << endl;
-    }
-}

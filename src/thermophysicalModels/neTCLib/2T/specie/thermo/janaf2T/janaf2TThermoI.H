@@ -315,7 +315,12 @@ inline void Foam::janaf2TThermo<EquationOfState>::operator+=
     {
         Y1 /= this->Y();
         const scalar Y2 = jt.Y()/this->Y();
-
+        {
+            scalar wTheta = 0.0, sumTheta = 0.0;
+            if (ThetaVib_ > SMALL)    { wTheta += Y1; sumTheta += Y1*ThetaVib_; }
+            if (jt.ThetaVib_ > SMALL) { wTheta += Y2; sumTheta += Y2*jt.ThetaVib_; }
+            ThetaVib_ = (wTheta > SMALL) ? sumTheta/wTheta : 0.0;
+        }
         TAbsLow_ = max(TAbsLow_, jt.TAbsLow_);
         TAbsHigh_ = min(TAbsHigh_, jt.TAbsHigh_);
 
@@ -403,8 +408,12 @@ inline Foam::janaf2TThermo<EquationOfState> Foam::operator+
         const scalar Y1 = jt1.Y()/eofs.Y();
         const scalar Y2 = jt2.Y()/eofs.Y();
 
-        const scalar thetaVibMix = jt1.ThetaVib_ * Y1 + jt2.ThetaVib_ * Y2;
-
+        //const scalar thetaVibMix = jt1.ThetaVib_ * Y1 + jt2.ThetaVib_ * Y2;
+        scalar wTheta = 0.0, sumTheta = 0.0;
+        if (jt1.ThetaVib_ > SMALL) { wTheta += Y1; sumTheta += Y1*jt1.ThetaVib_; }
+        if (jt2.ThetaVib_ > SMALL) { wTheta += Y2; sumTheta += Y2*jt2.ThetaVib_; }
+        const scalar thetaVibMix = (wTheta > SMALL) ? sumTheta/wTheta : 0.0;
+        
         typename janaf2TThermo<EquationOfState>::coeffArray highCpCoeffs;
         typename janaf2TThermo<EquationOfState>::coeffArray midCpCoeffs;
         typename janaf2TThermo<EquationOfState>::coeffArray lowCpCoeffs;
@@ -513,7 +522,12 @@ inline Foam::janaf2TThermo<EquationOfState> Foam::operator==
 
     const scalar Y1 = jt1.Y()/eofs.Y();
     const scalar Y2 = jt2.Y()/eofs.Y();
-    const scalar thetaVibMix = jt1.ThetaVib_ * Y1 + jt2.ThetaVib_ * Y2;
+    //const scalar thetaVibMix = jt1.ThetaVib_ * Y1 + jt2.ThetaVib_ * Y2;
+    scalar wTheta = 0.0, sumTheta = 0.0;
+    if (jt1.ThetaVib_ > SMALL) { wTheta += Y1; sumTheta += Y1*jt1.ThetaVib_; }
+    if (jt2.ThetaVib_ > SMALL) { wTheta += Y2; sumTheta += Y2*jt2.ThetaVib_; }
+    const scalar thetaVibMix = (wTheta > SMALL) ? sumTheta/wTheta : 0.0;
+    
     typename janaf2TThermo<EquationOfState>::coeffArray highCpCoeffs;
     typename janaf2TThermo<EquationOfState>::coeffArray midCpCoeffs;
     typename janaf2TThermo<EquationOfState>::coeffArray lowCpCoeffs;
