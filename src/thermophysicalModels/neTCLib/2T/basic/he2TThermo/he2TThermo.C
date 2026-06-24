@@ -113,6 +113,7 @@ void Foam::he2TThermo<Basic2TThermo, MixtureType>::init
 {
     const bool use2T = this->twoTemperature();
     const scalar theta = this->cellMixture(0).ThetaVib();
+    const label nSpecie = this->Y().size();
 
     scalarField& hCells   = h.primitiveFieldRef();
     scalarField& eTRCells = eTR.primitiveFieldRef();    
@@ -135,14 +136,18 @@ void Foam::he2TThermo<Basic2TThermo, MixtureType>::init
                 TTRCells[celli]                        
             );                                         
 
-        eVibCells[celli] =
-            this->cellMixture(celli).EV
-            (
-                pCells[celli],
-                TTRCells[celli],
-                TVibUse,
-                theta
-            );
+        scalar evMix = 0;
+        for (label speciei = 0; speciei < nSpecie; ++speciei)
+        {
+            evMix +=
+                this->Y()[speciei][celli]
+              * this->EsVib
+                (
+                    speciei, pCells[celli], TTRCells[celli],
+                    TVibUse, this->composition().thetaVib(speciei)
+                );
+        }
+        eVibCells[celli] = evMix;
     }
 
     volScalarField::Boundary& hBf    = h.boundaryFieldRef();
@@ -945,18 +950,25 @@ Foam::tmp<Foam::volScalarField> Foam::he2TThermo<Basic2TThermo, MixtureType>::eV
     const scalarField& TTRCells = TTR;
     const scalarField& TVibCells = TVib;
 
+    const PtrList<volScalarField>& Yvf = this->Y();
+    const label nSpecie = Yvf.size();
+
     forAll(eVibCells, celli)
     {
         const scalar TVibUse = use2T ? TVibCells[celli] : TTRCells[celli];
 
-        eVibCells[celli] =
-            this->cellMixture(celli).EV
-            (
-                pCells[celli],
-                TTRCells[celli],
-                TVibUse,
-                ThetaVib
-            );
+        scalar evMix = 0;
+        for (label speciei = 0; speciei < nSpecie; ++speciei)
+        {
+            evMix +=
+                Yvf[speciei][celli]
+              * this->EsVib
+                (
+                    speciei, pCells[celli], TTRCells[celli],
+                    TVibUse, this->composition().thetaVib(speciei)
+                );
+        }
+        eVibCells[celli] = evMix;
     }
 
     volScalarField::Boundary& eVibBf = eVib.boundaryFieldRef();
@@ -972,14 +984,18 @@ Foam::tmp<Foam::volScalarField> Foam::he2TThermo<Basic2TThermo, MixtureType>::eV
         {
             const scalar TVibUse = use2T ? TVibp[facei] : TTRp[facei];
 
-            esVibp[facei] =
-                this->patchFaceMixture(patchi, facei).EV
-                (
-                    pp[facei],
-                    TTRp[facei],
-                    TVibUse,
-                    ThetaVib
-                );
+            scalar evMix = 0;
+            for (label speciei = 0; speciei < nSpecie; ++speciei)
+            {
+                evMix +=
+                    Yvf[speciei].boundaryField()[patchi][facei]
+                  * this->EsVib
+                    (
+                        speciei, pp[facei], TTRp[facei],
+                        TVibUse, this->composition().thetaVib(speciei)
+                    );
+            }
+            esVibp[facei] = evMix;
         }
     }
 
@@ -1001,18 +1017,26 @@ Foam::tmp<Foam::scalarField> Foam::he2TThermo<Basic2TThermo, MixtureType>::eVib
     auto tesvib = tmp<scalarField>::New(TTR.size());
     auto& eVib = tesvib.ref();
 
+    const PtrList<volScalarField>& Yvf = this->Y();
+    const label nSpecie = Yvf.size();
+
     forAll(TTR, celli)
     {
         const scalar TVibUse = use2T ? TVib[celli] : TTR[celli];
+        const label gCelli = cells[celli];
 
-        eVib[celli] =
-            this->cellMixture(cells[celli]).EV
-            (
-                p[celli],
-                TTR[celli],
-                TVibUse,
-                ThetaVib
-            );
+        scalar evMix = 0;
+        for (label speciei = 0; speciei < nSpecie; ++speciei)
+        {
+            evMix +=
+                Yvf[speciei][gCelli]
+              * this->EsVib
+                (
+                    speciei, p[celli], TTR[celli],
+                    TVibUse, this->composition().thetaVib(speciei)
+                );
+        }
+        eVib[celli] = evMix;
     }
 
     return tesvib;
@@ -1033,19 +1057,25 @@ Foam::tmp<Foam::scalarField> Foam::he2TThermo<Basic2TThermo, MixtureType>::eVib
     auto tesvib = tmp<scalarField>::New(TTR.size());
     auto& eVib = tesvib.ref();
 
+    const PtrList<volScalarField>& Yvf = this->Y();
+    const label nSpecie = Yvf.size();
 
     forAll(TTR, facei)
     {
         const scalar TVibUse = use2T ? TVib[facei] : TTR[facei];
 
-        eVib[facei] =
-            this->patchFaceMixture(patchi, facei).EV
-            (
-                p[facei],
-                TTR[facei],
-                TVibUse,
-                ThetaVib
-            );
+        scalar evMix = 0;
+        for (label speciei = 0; speciei < nSpecie; ++speciei)
+        {
+            evMix +=
+                Yvf[speciei].boundaryField()[patchi][facei]
+              * this->EsVib
+                (
+                    speciei, p[facei], TTR[facei],
+                    TVibUse, this->composition().thetaVib(speciei)
+                );
+        }
+        eVib[facei] = evMix;
     }
 
     return tesvib;
