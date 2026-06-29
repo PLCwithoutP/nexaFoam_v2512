@@ -1,0 +1,24 @@
+#!/bin/bash
+#SBATCH --ntasks-per-node=15
+#SBATCH --nodes=1
+#SBATCH --partition=long
+#SBATCH --account=vtams
+#SBATCH --wckey=v_tm0211
+#SBATCH --mail-user=mehmetfurkan.tunc2@tai.com.tr
+#SBATCH --mail-type=ALL
+#SBATCH -J nexaFoam_20MachCylinder_Normal
+#SBATCH --output=%J.out
+#SBATCH --error=%J.err
+#SBATCH --time=144:00:00
+
+#####################################################################
+source /lustre/home/t32587/OF2512/OpenFOAM-v2512/etc/bashrc
+#####################################################################
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+#checkMesh > log.checkMesh.$SLURM_JOB_ID
+decomposePar > log.decomposePar.$SLURM_JOB_ID
+
+mpirun -np 15 nexaFoam -parallel | tee log.nexaFoam.$SLURM_JOB_ID

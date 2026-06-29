@@ -1,0 +1,216 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      reactionsDict;
+}
+
+species
+(
+    N2
+    O2
+    NO
+    N
+    O
+);
+
+reactions
+{
+    O2dissociation_N2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + N2 = 2O + N2";
+        A           7.829e16;
+        beta        -1.0;
+        Ta          59370.6;
+        alphaPark   1.0;
+    }
+
+    O2dissociation_N
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + N = 2O + N";
+        A           6.624e16;
+        beta        -1.0;
+        Ta          59370.6;
+        alphaPark   1.0;
+    }
+
+    O2dissociation_NO
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + NO = 2O + NO";
+        A           6.624e16;
+        beta        -1.0;
+        Ta          59370.6;
+        alphaPark   1.0;
+    }
+
+    O2dissociation_O2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + O2 = 2O + O2";
+        A           3.210e16;
+        beta        -1.0;
+        Ta          59370.6;
+        alphaPark   1.0;
+    }
+
+    O2dissociation_O
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + O = 2O + O";
+        A           9.033e16;
+        beta        -1.05;
+        Ta          59370.6;
+        alphaPark   1.0;
+    }
+
+    N2dissociation_O
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + O = 2N + O";
+        A           2.409e15;
+        beta        -0.54;
+        Ta          113497.4;
+        alphaPark   1.0;
+    }
+
+    N2dissociation_O2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + O2 = 2N + O2";
+        A           9.033e15;
+        beta        -0.68;
+        Ta          113497.4;
+        alphaPark   1.0;
+    }
+
+    N2dissociation_NO
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + NO = 2N + NO";
+        A           9.033e15;
+        beta        -0.68;
+        Ta          113497.4;
+        alphaPark   1.0;
+    }
+
+    N2dissociation_N2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + N2 = 2N + N2";
+        A           2.469e15;
+        beta        -0.62;
+        Ta          113497.4;
+        alphaPark   1.0;
+    }
+
+    N2dissociation_N
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + N = 2N + N";
+        A           6.022e15;
+        beta        -0.68;
+        Ta          113497.4;
+        alphaPark   1.0;
+    }
+
+    NOdissociation_N2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + N2 = N + O + N2";
+        A           1.265e17;
+        beta        -1.0;
+        Ta          75544.2;
+        alphaPark   1.0;
+    }
+
+    NOdissociation_O2
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + O2 = N + O + O2";
+        A           1.204e17;
+        beta        -1.0;
+        Ta          75544.2;
+        alphaPark   1.0;
+    }
+
+    NOdissociation_NO
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + NO = N + O + NO";
+        A           6.022e16;
+        beta        -1.0;
+        Ta          75544.2;
+        alphaPark   1.0;
+    }
+
+    NOdissociation_O
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + O = N + O + O";
+        A           2.409e17;
+        beta        -1.1;
+        Ta          75544.2;
+        alphaPark   1.0;
+    }
+
+    NOdissociation_N
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + N = N + O + N";
+        A           2.409e17;
+        beta        -1.1;
+        Ta          75544.2;
+        alphaPark   1.0;
+    }
+
+    NOplusO_to_O2plusN
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + O = O2 + N";
+        A           1.385e8;
+        beta        0.5;
+        Ta          19693.6;
+        alphaPark   1.0;
+    }
+
+    N2plusO_to_NOplusN
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "N2 + O = NO + N";
+        A           4.818e10;
+        beta        0.0;
+        Ta          37482.4;
+        alphaPark   1.0;
+    }
+
+    O2plusN_to_NOplusO
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "O2 + N = NO + O";
+        A           2.409e12;
+        beta        -0.39;
+        Ta          1448.6;
+        alphaPark   1.0;
+    }
+
+    NOplusN_to_N2plusO
+    {
+        type        irreversibleneArrheniusneReaction;
+        reaction    "NO + N = N2 + O";
+        A           3.011e11;
+        beta        -0.35;
+        Ta          1448.6;
+        alphaPark   1.0;
+    }
+}

@@ -1,0 +1,59 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      TVib;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "initialConditions"
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   uniform $TVibValue;
+
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform $TVibValue;
+    }
+
+    cylinder
+    {
+        type            fixedValue;
+        value           uniform $TwallValue;
+    }
+
+    over
+    {
+        type            empty;
+    }
+
+    under
+    {
+        type            empty;
+    }
+
+    outlet
+    {
+        type            zeroGradient;
+    }
+
+    symmBC
+    {
+	type	        symmetry;
+    }
+}
+
+
+// ************************************************************************* //

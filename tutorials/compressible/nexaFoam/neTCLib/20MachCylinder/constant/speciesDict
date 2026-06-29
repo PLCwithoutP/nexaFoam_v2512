@@ -1,0 +1,185 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      speciesDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+N2
+{
+    elements
+    {
+        N 2;
+    }
+
+    specie
+    {
+        molWeight       28.01348; // g.m^(-3)
+        type            molecular;
+    }
+    thermodynamics
+    {
+    TAbsLow            10; // K
+    TAbsHigh           80000; // K
+    TFirstInt          1000; // K
+    TSecondInt         6000; // K
+    ThetaVibrational   3371; // K
+    warnOutOfRange          false;
+    highCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    midCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    lowCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.68e-02;
+        BB              3.18e-01;
+        CB              -1.13e+01;
+        //Pr            0.7020; // Valid 200-10000 K
+    }
+
+    dissociationPotential   3.36e7;
+    
+}
+
+// N
+N
+{
+    elements
+    {
+        N 1;
+    }
+
+    specie
+    {
+        molWeight       14.0067; // g.m^(-3)
+        type            atomic;
+    }
+    // B. J. McBride, M. J. Zehe, and S. Gordon, "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species", NASA/TP-2002-211556, 2002.
+    thermodynamics
+    {
+        TAbsLow            20; // K
+        TAbsHigh           80000; // K
+        TFirstInt          1000; // K
+        TSecondInt         6000; // K
+        ThetaVibrational   0; // K
+        highCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        5.610463780e+04
+	        0.0
+        );
+        midCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        5.610463780e+04
+	        0.0
+        );
+        lowCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        5.610463780e+04
+	        0.0
+        );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.4768e-02;
+        BB              2.8672e-01;
+        CB              -1.0976e+01;
+        //Pr            0.8133; // Valid 200-10000 K
+    }
+}
+
+/*
+KnabVVCoefficients
+{
+    // Fallback for any pair not explicitly listed
+    default
+    {
+        sigma12     1.5e-18;   // m²
+        P21         0.01;
+    }
+
+    // Species-pair specific overrides (name1_name2 or name2_name1, both checked)
+    N2_O2
+    {
+        sigma12     2.667e-19;
+        P21         0.01;
+    }
+
+    N2_NO
+    {
+        sigma12     2.751e-19;
+        P21         0.01;
+    }
+
+    O2_NO
+    {
+        sigma12     2.686e-19;
+        P21         0.01;
+    }
+}
+// ************************************************************************* //
+*/

@@ -1,0 +1,397 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      speciesDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+species
+(
+    N2
+	O2
+);
+
+
+N2
+{
+    elements
+    {
+        N 2;
+    }
+
+    specie
+    {
+        molWeight       28.01348; // g.m^(-3)
+        type            molecular;
+    }
+    thermodynamics
+    {
+    TAbsLow            10; // K
+    TAbsHigh           80000; // K
+    TFirstInt          1000; // K
+    TSecondInt         6000; // K
+    ThetaVibrational   3371; // K
+    warnOutOfRange          false;
+    highCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    midCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    lowCpCoeffs
+    (
+        0.0
+        0.0
+        3.5
+        0.0
+        0.0
+        0.0
+        0.0
+        -1.04352e+03
+        0.0
+    );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.68e-02;
+        BB              3.18e-01;
+        CB              -1.13e+01;
+        //Pr            0.7020; // Valid 200-10000 K
+    }
+
+    dissociationPotential   3.36e7;
+    
+}
+
+
+O2
+{
+    elements
+    {
+        O 2;
+    }
+
+    specie
+    {
+        molWeight       31.9988; // g.m^(-3)
+        type            molecular;
+    }
+    // B. J. McBride, M. J. Zehe, and S. Gordon, "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species", NASA/TP-2002-211556, 2002.
+    thermodynamics
+    {
+        TAbsLow            20; // K
+        TAbsHigh           80000; // K
+        TFirstInt          1000; // K
+        TSecondInt         6000; // K
+        ThetaVibrational   2256; // K
+        highCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        midCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        lowCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.6757e-02;
+        BB              2.5401e-01;
+        CB              -1.0711e+01;
+        //Pr            0.7051; // Valid 200-10000 K
+    }
+
+    dissociationPotential   1.54e7;
+}
+
+/*
+// N
+N
+{
+    elements
+    {
+        N 1;
+    }
+
+    specie
+    {
+        molWeight       14.0067; // g.m^(-3)
+        type            atomic;
+    }
+    // B. J. McBride, M. J. Zehe, and S. Gordon, "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species", NASA/TP-2002-211556, 2002.
+    thermodynamics
+    {
+        TAbsLow            20; // K
+        TAbsHigh           30000; // K
+        TFirstInt          1000; // K
+        TSecondInt         6000; // K
+        ThetaVibrational   0; // K
+        highCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        midCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        lowCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.4768e-02;
+        BB              2.8672e-01;
+        CB              -1.0976e+01;
+        //Pr            0.8133; // Valid 200-10000 K
+    }
+}
+// O
+O
+{
+    elements
+    {
+        O 1;
+    }
+
+    specie
+    {
+        molWeight       15.9994; // g.m^(-3)
+        type            atomic;
+    }
+    // B. J. McBride, M. J. Zehe, and S. Gordon, "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species", NASA/TP-2002-211556, 2002.
+    thermodynamics
+    {
+        TAbsLow            20; // K
+        TAbsHigh           30000; // K
+        TFirstInt          1000; // K
+        TSecondInt         6000; // K
+        ThetaVibrational   0; // K
+        highCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        midCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        lowCpCoeffs
+        (
+	        0.0
+	        0.0
+	        2.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.7230e-02;
+        BB              2.3976e-01;
+        CB              -1.0383e+01;
+        //Pr            0.7053; // Valid 200-10000 K
+    }
+}
+// NO
+NO
+{
+    elements
+    {
+        N 1;
+        O 1;
+    }
+    specie
+    {
+        molWeight       30.0061; // g.m^(-3)
+        type            molecular;
+    }
+    // B. J. McBride, M. J. Zehe, and S. Gordon, "NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species", NASA/TP-2002-211556, 2002.
+    thermodynamics
+    {
+        TAbsLow            20; // K
+        TAbsHigh           30000; // K
+        TFirstInt          1000; // K
+        TSecondInt         6000; // K
+        ThetaVibrational   2719; // K
+        highCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        midCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+        lowCpCoeffs
+        (
+	        0.0
+	        0.0
+	        3.5
+	        0.0
+	        0.0
+	        0.0
+	        0.0
+	        -1.04352e+03
+	        0.0
+        );
+    }
+    // M. Lalande, N. Dellinger, Y. Prevereaud, N. Bartoli, and J-M. Lamet, "Blottner’s Coefficients and Prandtl Number for Charring Materials Atmospheric Entry Simulations", AIAA Journal, 63(8), 2025.
+    transport // Valid 200-30000 K
+    {
+        AB              2.7227e-02;
+        BB              2.4463e-01;
+        CB              -1.0776e+01;
+        //Pr            0.7132; // Valid 200-10000 K
+    }
+
+    dissociationPotential   2.09e7;
+}
+
+KnabVVCoefficients
+{
+    // Fallback for any pair not explicitly listed
+    default
+    {
+        sigma12     1.5e-18;   // m²
+        P21         0.01;
+    }
+
+    // Species-pair specific overrides (name1_name2 or name2_name1, both checked)
+    N2_O2
+    {
+        sigma12     2.667e-19;
+        P21         0.01;
+    }
+
+    N2_NO
+    {
+        sigma12     2.751e-19;
+        P21         0.01;
+    }
+
+    O2_NO
+    {
+        sigma12     2.686e-19;
+        P21         0.01;
+    }
+}
+// ************************************************************************* //
+*/

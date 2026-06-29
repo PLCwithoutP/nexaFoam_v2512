@@ -1,0 +1,48 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       polyBoundaryMesh;
+    location    "constant/polyMesh";
+    object      boundary;
+}
+
+6         
+(
+    cone
+    {
+        type wall;
+        nFaces 597;
+        startFace 153300;
+    }
+    inlet
+    {
+        type patch;
+        nFaces 597;
+        startFace 153897;
+    }
+    outlet
+    {
+        type patch;
+        nFaces 129;
+        startFace 154494;
+    }
+    symmBC
+    {
+        type symmetry;
+        nFaces 129;
+        startFace 154623;
+    }
+    wedge1
+    {
+        type wedge;
+        nFaces 77013;
+        startFace 154752;
+    }
+    wedge2
+    {
+        type wedge;
+        nFaces 77013;
+        startFace 231765;
+    }
+)

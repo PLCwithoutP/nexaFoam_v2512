@@ -1,0 +1,149 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "../0/initialConditions"
+
+application     nexaFoam;
+
+startFrom       latestTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.002;
+
+deltaT          1e-09;
+
+writeControl    adjustableRunTime;
+
+writeInterval   1e-05;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+graphFormat     raw;
+
+runTimeModifiable true;
+
+adjustTimeStep  yes;
+
+maxCo           0.45;
+
+maxDeltaT       1e-08;
+
+functions
+{
+	fieldMinMax
+	{
+	    type            fieldMinMax;
+	    libs            (fieldFunctionObjects);
+		fields          (p U TTR TVib rho);
+
+	    enabled         yes;
+	    log             yes;
+	    timeStart       0;
+	    executeControl  timeStep;
+	    executeInterval 1;
+	    writeToFile     no;
+	    writeControl    timeStep;
+	    writeInterval   1;
+
+	}
+    cp_surface
+    {
+        type            nePressureCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+
+        rhoInf          9.84e-4;
+        magUInf         4303;
+
+        patches         (cone);      // omit for all walls
+        writeControl    writeTime;
+        log             yes;
+    }
+    
+    tau_surface
+    {
+        type            neWallShearStress;
+        libs            ("libnexaFieldFunctionObjects.so");
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    cf_surface
+    {
+        type            neFrictionCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          9.84e-4;
+        magUInf         4303;
+        wallShearStress tau_surface;
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    wallHeatFlux
+    {
+        type            neWallHeatFlux;
+        libs            ("libnexaFieldFunctionObjects.so");
+        kappaTR         kappaPP;
+        TTR             TTR;
+        twoTemperature  false;       // true + kappaVe/TVib for the 2T cases
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    StantonNumber
+    {
+        type            neStantonNumber;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          9.84e-4;
+        magUInf         4303;
+        wallHeatFlux    wallHeatFlux;
+        patches         (cone);
+        writeControl    writeTime;
+    }
+    
+    coneSurface
+    {
+        type            surfaces;
+        libs            ("libsampling.so");
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        interpolate     false;       // face-centre values, no blending
+        fields          (p muLam cp_surface tau_surface cf_surface kappaPP wallHeatFlux StantonNumber);
+        surfaces
+        (
+            cone
+            {
+                type    patch;
+                patches (cone);
+            }
+        );
+    }
+}
+
+
+// ************************************************************************* //

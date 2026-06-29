@@ -1,0 +1,172 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2412                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "../0/initialConditions"
+
+application     nexaFoam;
+
+startFrom       latestTime;
+
+startTime       0;
+
+stopAt          endTime;
+
+endTime         0.002;
+
+deltaT          1e-12;
+
+writeControl    adjustableRunTime;
+
+writeInterval   1e-07;
+
+purgeWrite      0;
+
+writeFormat     ascii;
+
+writePrecision  6;
+
+writeCompression off;
+
+timeFormat      general;
+
+timePrecision   6;
+
+graphFormat     raw;
+
+runTimeModifiable true;
+
+adjustTimeStep  yes;
+
+maxCo           0.2;
+
+maxDeltaT       1e-08;
+
+functions
+{
+	fieldMinMax
+	{
+	    type            fieldMinMax;
+	    libs            (fieldFunctionObjects);
+		fields          (p U TTR TVib rho);
+
+	    enabled         yes;
+	    log             yes;
+	    timeStart       0;
+	    executeControl  timeStep;
+	    executeInterval 1;
+	    writeToFile     no;
+	    writeControl    timeStep;
+	    writeInterval   1;
+
+	}
+
+	neReactionRates
+    {
+        type            ne2TSpecieReactionRates;
+        libs            ("libneChemistryModel.so");
+
+        writeControl    timeStep;
+        writeInterval   1;
+
+        // optional: restrict to a cellZone / region later if wanted
+    }
+    reactionTracker
+    {
+        type              ne2TReactionTracker;
+        libs              ("libneChemistryModel.so");
+
+        writeControl      timeStep;
+        writeInterval     1;
+
+        activityTolerance 1e-20;
+        writeToLog        true;
+    }
+    
+    cp_surface
+    {
+        type            nePressureCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+
+        rhoInf          1.547e-3;
+        magUInf         5956;
+
+        patches         (cylinder);      // omit for all walls
+        writeControl    writeTime;
+        log             yes;
+    }
+    
+    tau_surface
+    {
+        type            neWallShearStress;
+        libs            ("libnexaFieldFunctionObjects.so");
+        patches         (cylinder);
+        writeControl    writeTime;
+    }
+    
+    cf_surface
+    {
+        type            neFrictionCoefficient;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          1.547e-3;
+        magUInf         5956;
+        wallShearStress tau_surface;
+        patches         (cylinder);
+        writeControl    writeTime;
+    }
+    
+    wallHeatFlux
+    {
+        type            neWallHeatFlux;
+        libs            ("libnexaFieldFunctionObjects.so");
+        kappaTR         kappaPP;
+        TTR             TTR;
+        twoTemperature  false;       // true + kappaVe/TVib for the 2T cases
+        patches         (cylinder);
+        writeControl    writeTime;
+    }
+    
+    StantonNumber
+    {
+        type            neStantonNumber;
+        libs            ("libnexaFieldFunctionObjects.so");
+        rhoInf          1.547e-3;
+        magUInf         5956;
+        wallHeatFlux    wallHeatFlux;
+        patches         (cylinder);
+        writeControl    writeTime;
+    }
+    
+    cylinderSurface
+    {
+        type            surfaces;
+        libs            ("libsampling.so");
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        interpolate     false;       // face-centre values, no blending
+        fields          (p muLam cp_surface tau_surface cf_surface kappaPP wallHeatFlux StantonNumber);
+        surfaces
+        (
+            cylinder
+            {
+                type    patch;
+                patches (cylinder);
+            }
+        );
+    }
+}
+
+
+// ************************************************************************* //
