@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Cone-surface pressure distribution vs surface distance, several time snapshots,
-in the style of Vatansever (2020) hyperReactingFoam double-cone validation.
+Cone-surface wall heat-flux distribution vs surface distance, several time
+snapshots, in the style of the Vatansever (2020) / hyperReactingFoam double-cone
+validation.
 
-Reads OpenFOAM sampled-surface 'raw' output for the cone patch and overlays
-time snapshots so you can watch convergence toward steady state, and optionally
-overlays a digitized reference curve.
+Reads OpenFOAM sampled-surface 'raw' output for the cone patch (wallHeatFlux)
+and overlays time snapshots so you can watch convergence toward steady state.
 
 Usage:
-    python plot_cone_pressure.py
+    python q_time_plot.py
 Edit the CONFIG block for your paths / surface name / times.
 """
 
@@ -20,20 +20,15 @@ import matplotlib.pyplot as plt
 # ------------------------------- CONFIG -------------------------------------
 PP_DIR      = "postProcessing/coneSurface"  # function-object output directory
 SURFACE     = "cone"                        # sampled surface name
-FIELD       = "p"                           # field name in the raw file
-P_TO_KPA    = 1.0e-3                         # Pa -> kPa
+FIELD       = "wallHeatFlux"                # field name in the raw file
+Q_TO_WCM2   = 1.0e-4                         # W/m^2 -> W/cm^2  (1 m^2 = 1e4 cm^2)
+Q_SIGN      = 1.0                            # set -1.0 if your q_w comes out negative
 LEN_TO_CM   = 1.0e2                          # m  -> cm
-X_AXIS      = "axial"                    # "arclength" (s from tip) or "axial" (x)
+X_AXIS      = "axial"                        # "arclength" (s from tip) or "axial" (x)
 S_OFFSET_CM = 0.0                            # shift to align with the reference origin
 TIMES       = None      # None = all available; or e.g. [1.17e-4, 2.83e-4, 1.75e-3]
 TIME_RTOL   = 0.05      # relative tolerance when matching requested times
-# Reference curves (Vatansever 2020). x assumed in CENTIMETRES, y in kPa.
-REF_CSVS = [
-    ("hyperReactingFoam_p.csv", "Vatansever (2020), CFD"),
-    ("holden_p.csv",   "Holden (2014), Experiment")
-]
-REF_X_OFFSET_M = 0.004527
-OUT_PNG     = "validation_graph.png"
+OUT_PNG     = "time_dependent_q.png"
 # ----------------------------------------------------------------------------
 
 
@@ -51,7 +46,7 @@ def find_raw_file(time_dir):
 
 
 def load_surface(path):
-    """Return x, y, z, p from an OpenFOAM raw scalar-surface file."""
+    """Return x, y, z, q from an OpenFOAM raw scalar-surface file."""
     data = np.loadtxt(path, comments="#")
     if data.ndim == 1:
         data = data[None, :]
@@ -97,7 +92,7 @@ def main():
     all_times = available_times()
     if not all_times:
         raise SystemExit(f"No time directories under {PP_DIR!r}")
-    times = [all_times[-1]]
+    times = pick_times(all_times)
 
     fig, ax = plt.subplots(figsize=(9, 6))
     cmap = plt.get_cmap("turbo")
@@ -108,37 +103,16 @@ def main():
         if path is None:
             print(f"  [skip] no {FIELD} file in {tdir}")
             continue
-        x, y, _, p = load_surface(path)
+        x, y, _, q = load_surface(path)
         order, s = surface_coordinate(x, y)
-        ax.plot(s * LEN_TO_CM + S_OFFSET_CM, p[order] * P_TO_KPA,
-                color="red", lw=1.6,
-                label=f"nexaFoam : p ~ {t:.2e}s")
+        ax.plot(s * LEN_TO_CM + S_OFFSET_CM, Q_SIGN * q[order] * Q_TO_WCM2,
+                color=cmap(i / n), lw=1.6,
+                label=f"nexaFoam : qw ~ {t:.2e}s")
 
-    ref_styles = [
-        {"kind": "line",   "color": "darkblue", "ls": "--"},                 # 0 Vatansever
-        {"kind": "marker", "color": "black",    "marker": "s", "mfc": "black"},# 1 experiment
-    ]
-    for j, (rpath, rlabel) in enumerate(REF_CSVS):
-        if not os.path.isfile(rpath):
-            print(f"  [warn] reference not found: {rpath}")
-            continue
-        ref = np.loadtxt(rpath, delimiter=",")
-        if ref.ndim == 1:
-            ref = ref[None, :]
-        xref = ref[:, 0] + REF_X_OFFSET_M * LEN_TO_CM
-        st = ref_styles[j % len(ref_styles)]
-        if st["kind"] == "line":
-            ax.plot(xref, ref[:, 1], color=st["color"], ls=st["ls"], lw=2.0,
-                    label=rlabel)
-        else:
-            ax.plot(xref, ref[:, 1], linestyle="none",
-                    marker=st["marker"], markerfacecolor=st["mfc"],
-                    markeredgecolor=st["color"], markersize=7,
-                    markeredgewidth=1.4, label=rlabel)
-
-    ax.set_xlabel("Surface distance (cm)", fontweight="bold")
-    ax.set_ylabel("Pressure (kPa)", fontweight="bold")
-    ax.set_xlim(4.0, 20.0)
+    ax.set_xlabel("Horizontal distance on cone surface (cm)", fontweight="bold")
+    ax.set_ylabel("Heat Flux (W/cm$^2$)", fontweight="bold")
+    ax.set_xlim(4.0, 16.0)
+    ax.set_ylim(0,700)
     ax.grid(True, alpha=0.4)
     ax.legend(fontsize=9, framealpha=0.9)
     fig.tight_layout()
