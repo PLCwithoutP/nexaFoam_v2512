@@ -44,8 +44,8 @@ Foam::smoluchowskiJumpT::smoluchowskiJumpT
     mixedFvPatchScalarField(p, iF),
     UName_("U"),
     rhoName_("rho"),
-    psiName_("thermo:psi"),
-    muName_("thermo:mu"),
+    psiName_("thermo2T:psi"),
+    muName_("thermo2T:mu"),
     accommodationCoeff_(1.0),
     Twall_(p.size(), Zero)
 {
@@ -83,8 +83,8 @@ Foam::smoluchowskiJumpT::smoluchowskiJumpT
     mixedFvPatchScalarField(p, iF),
     UName_(dict.getOrDefault<word>("U", "U")),
     rhoName_(dict.getOrDefault<word>("rho", "rho")),
-    psiName_(dict.getOrDefault<word>("psi", "thermo:psi")),
-    muName_(dict.getOrDefault<word>("mu", "thermo:mu")),
+    psiName_(dict.getOrDefault<word>("psi", "thermo2T:psi")),
+    muName_(dict.getOrDefault<word>("mu", "thermo2T:mu")),
     accommodationCoeff_(dict.get<scalar>("accommodationCoeff")),
     Twall_("Twall", dict, p.size())
 {
@@ -165,7 +165,7 @@ void Foam::smoluchowskiJumpT::updateCoeffs()
     // Guard: skip if thermo stack is not yet fully initialised
     if
     (
-       !db().foundObject<volScalarField>("thermo:alpha")
+       !db().foundObject<volScalarField>("thermo2T:alphaheTR")
     || !db().foundObject<volScalarField>(muName_)
     || !db().foundObject<volScalarField>(psiName_)
     || !db().foundObject<volScalarField>(rhoName_)
@@ -183,15 +183,15 @@ void Foam::smoluchowskiJumpT::updateCoeffs()
     const auto& prho = patch().lookupPatchField<volScalarField>(rhoName_);
     const auto& ppsi = patch().lookupPatchField<volScalarField>(psiName_);
 
-    // --- Thermal diffusivity alpha = kappaTR/Cp — registered by thermo stack
+    // --- Thermal diffusivity alphaheTR = kappaTR/Cp — registered by thermo stack
     const auto& palpha =
-        patch().lookupPatchField<volScalarField>("thermo:alpha");
+        patch().lookupPatchField<volScalarField>("thermo2T:alphaheTR");
 
     // --- Prandtl number: face-varying, derived from thermo stack
     //
     //     Pr = mu / alpha_TR
     //
-    //     thermo:alpha = kappaTR/Cp is already registered — no separate
+    //     thermo2T:alpha = kappaTR/Cp is already registered — no separate
     //     kappaTR or Cp lookup needed. Exact for any mixture.
     const Field<scalar> Pr(pmu/palpha);
 
@@ -246,8 +246,8 @@ void Foam::smoluchowskiJumpT::write(Ostream& os) const
 
     os.writeEntryIfDifferent<word>("U", "U", UName_);
     os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
-    os.writeEntryIfDifferent<word>("psi", "thermo:psi", psiName_);
-    os.writeEntryIfDifferent<word>("mu", "thermo:mu", muName_);
+    os.writeEntryIfDifferent<word>("psi", "thermo2T:psi", psiName_);
+    os.writeEntryIfDifferent<word>("mu", "thermo2T:mu", muName_);
 
     os.writeEntry("accommodationCoeff", accommodationCoeff_);
     Twall_.writeEntry("Twall", os);
