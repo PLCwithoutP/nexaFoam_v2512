@@ -254,6 +254,48 @@ int main(int argc, char *argv[])
 
         #include "Equations/applyChemistry.H"
 
+        // --- DEBUG: cylinder wall face flux (remove after diagnosis) ---
+{
+    const label patchi = mesh.boundaryMesh().findPatchID("cylinder");
+
+    if (patchi != -1)
+    {
+        const fvsPatchScalarField& phiw = phi.boundaryField()[patchi];
+        const fvPatchVectorField&  Uw   = U.boundaryField()[patchi];
+        const fvPatchScalarField&  rhow = rho.boundaryField()[patchi];
+        const fvPatchScalarField&  pw   = thermo2T.p().boundaryField()[patchi];
+        const vectorField          Sf   = mesh.Sf().boundaryField()[patchi];
+        const scalarField          magSf(mesh.magSf().boundaryField()[patchi]);
+        const vectorField          nf(mesh.boundary()[patchi].nf());
+
+        // Un-normalised (sum) and worst-face diagnostics
+        const scalar sumPhi   = gSum(phiw);
+        const scalar sumMagPhi= gSum(mag(phiw));
+        const scalar maxPhi   = gMax(mag(phiw));
+
+        Info<< "WALL cylinder:"
+            << "  sum(phi)="    << sumPhi
+            << "  sum|phi|="    << sumMagPhi
+            << "  max|phi|="    << maxPhi << nl;
+
+        // Per-face look at the first few faces (nose region)
+        forAll(phiw, facei)
+        {
+            if (facei < 1500)
+            {
+                Info<< "   face" << facei
+                    << "  phi="   << phiw[facei]
+                    << "  U.n="   << (Uw[facei] & nf[facei])
+                    << "  |U|="   << mag(Uw[facei])
+                    << "  rho="   << rhow[facei]
+                    << "  p="     << pw[facei] << nl;
+            }
+        }
+        Info<< endl;
+    }
+}
+// --------------------------------------------------------------
+
         runTime.write();
 
         runTime.printExecutionTime(Info);
