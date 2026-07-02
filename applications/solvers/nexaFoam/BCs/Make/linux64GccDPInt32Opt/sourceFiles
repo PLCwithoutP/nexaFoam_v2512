@@ -1,6 +1,7 @@
 SOURCE = \
 U/maxwellSlipU.C \
 T/smoluchowskiJumpT.C \
+T/smoluchowskiJumpTVib.C \
 rho/fixed2TRhoFvPatchScalarField.C \
 
 # sources

@@ -142,7 +142,8 @@ if (useChemistry)
     // 9) Rebuild pressure from updated rho and psi
     p.ref() = rho()/psi();
     p.correctBoundaryConditions();
-
+    rho.boundaryFieldRef() == psi.boundaryField()*p.boundaryField();
+    
     // Optional consistency for mixture-check path
     if (mixtureCheck)
     {
