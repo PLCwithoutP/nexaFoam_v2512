@@ -112,7 +112,7 @@ def main():
     ax.set_xlabel("Horizontal distance on cone surface (cm)", fontweight="bold")
     ax.set_ylabel("Heat Flux (W/cm$^2$)", fontweight="bold")
     ax.set_xlim(4.0, 16.0)
-    ax.set_ylim(0,700)
+    ax.set_ylim(0,1500)
     ax.grid(True, alpha=0.4)
     ax.legend(fontsize=9, framealpha=0.9)
     fig.tight_layout()

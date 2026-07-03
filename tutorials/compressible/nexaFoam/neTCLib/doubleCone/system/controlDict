@@ -26,7 +26,7 @@ stopAt          endTime;
 
 endTime         0.002;
 
-deltaT          1e-09;
+deltaT          1e-08;
 
 writeControl    adjustableRunTime;
 
@@ -52,7 +52,7 @@ adjustTimeStep  yes;
 
 maxCo           0.45;
 
-maxDeltaT       1e-08;
+maxDeltaT       1e-07;
 
 functions
 {
@@ -110,7 +110,9 @@ functions
         libs            ("libnexaFieldFunctionObjects.so");
         kappaTR         kappaPP;
         TTR             TTR;
-        twoTemperature  false;       // true + kappaVe/TVib for the 2T cases
+        kappaVe         kappaVe;
+        TVib            TVib;
+        twoTemperature  true;       // true + kappaVe/TVib for the 2T cases
         patches         (cone);
         writeControl    writeTime;
     }

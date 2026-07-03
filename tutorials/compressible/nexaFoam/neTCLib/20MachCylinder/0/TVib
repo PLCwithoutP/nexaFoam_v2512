@@ -30,7 +30,10 @@ boundaryField
 
     cylinder
     {
-        type            zeroGradient;
+        type                smoluchowskiJumpTVib;
+        accommodationCoeffVib  $accommodationCoeff;
+        TVibWall               uniform $TwallValue;
+        value               uniform $TVibValue;
     }
 
     over
