@@ -173,9 +173,11 @@ void Foam::smoluchowskiJumpTVib::updateCoeffs()
     const label patchi = patch().index();
     const labelUList& fc = patch().faceCells();
 
-    const scalarField& muInt  = thermo.mu()();
-    const scalarField& psiInt = thermo.psi()();
-    const scalarField& rhoInt = thermo.rho()();;
+    const tmp<volScalarField> tmu  = thermo.mu();
+    const scalarField& muInt       = tmu()();
+    const scalarField& psiInt      = thermo.psi()();
+    const tmp<volScalarField> trho = thermo.rho();
+    const scalarField& rhoInt      = trho()();
     const scalarField& TVibInt =
         db().lookupObject<volScalarField>("TVib")();     // mixture vib temperature (cells)
 
@@ -185,7 +187,8 @@ void Foam::smoluchowskiJumpTVib::updateCoeffs()
     //         const scalarField& alphaVeInt = thermo.alphaheVib()();
     //   (B) else build it from kappaVib and CvVib (as vibEnergyEquation.H does):
     //         alphaVe = thermo.kappaVib() / CvVibMix    (per near-wall cell)
-    const scalarField& kVibInt = thermo.kappaVib()();   // exists (used in createFields)
+    const tmp<volScalarField> tkVib = thermo.kappaVib();
+    const scalarField& kVibInt = tkVib()();
 
     Field<scalar> pmu(patch().size()), ppsi(patch().size()),
                   prho(patch().size()), pkVib(patch().size());

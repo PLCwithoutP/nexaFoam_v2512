@@ -178,9 +178,11 @@ void Foam::smoluchowskiJumpT::updateCoeffs()
     const labelUList& fc = patch().faceCells();
 
     // Internal (cell) fields
-    const scalarField& muInt    = thermo.mu()();
+    const tmp<volScalarField> tmu = thermo.mu();
+    const scalarField& muInt      = tmu()();
     const scalarField& psiInt   = thermo.psi()();
-    const scalarField& alphaInt = thermo.alphaheTR()();
+    const tmp<volScalarField> talpha = thermo.alphaheTR();
+    const scalarField& alphaInt = talpha()();
 
     // Near-wall cell values gathered onto the patch faces
     Field<scalar> pmu(patch().size());
