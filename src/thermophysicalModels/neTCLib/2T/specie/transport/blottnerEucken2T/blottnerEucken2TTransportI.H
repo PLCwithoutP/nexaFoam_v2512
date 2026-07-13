@@ -38,13 +38,15 @@ inline Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport
     const Thermo2T& t,
     const scalar AB,
     const scalar BB,
-    const scalar CB
+    const scalar CB,
+    const scalar Sc
 )
 :
     Thermo2T(t),
     AB_(AB),
     BB_(BB),
-    CB_(CB)
+    CB_(CB),
+    Sc_(Sc)
 {}
 
 
@@ -58,7 +60,8 @@ inline Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport
     Thermo2T(name, st),
     AB_(st.AB_),
     BB_(st.BB_),
-    CB_(st.CB_)
+    CB_(st.CB_),
+    Sc_(st.Sc_)
 {}
 
 
@@ -108,11 +111,13 @@ inline Foam::scalar Foam::blottnerEucken2TTransport<Thermo2T>::kappaTR
 template<class Thermo2T>
 inline Foam::scalar Foam::blottnerEucken2TTransport<Thermo2T>::kappaVib
 (
-    const scalar TTR
+    const scalar p,
+    const scalar TTR,
+    const scalar TVib,
+    const scalar ThetaVib
 ) const
 {
-    scalar nv_ = 1.2;
-    return nv_*mu(TTR);
+    return mu(TTR)*this->CvVib(p, TTR, TVib, ThetaVib)/Sc_;
 }
 
 
@@ -147,6 +152,7 @@ inline void Foam::blottnerEucken2TTransport<Thermo2T>::operator+=
         AB_ = Y1*AB_ + Y2*st.AB_;
         BB_ = Y1*BB_ + Y2*st.BB_;
         CB_ = Y1*CB_ + Y2*st.CB_;
+        Sc_ = Y1*Sc_ + Y2*st.Sc_;
     }
 }
 
@@ -179,10 +185,7 @@ inline Foam::blottnerEucken2TTransport<Thermo2T> Foam::operator+
     {
         return blottnerEucken2TTransport<Thermo2T>
         (
-            t,
-            st1.AB_,
-            st1.BB_,
-            st1.CB_
+            t, st1.AB_, st1.BB_, st1.CB_, st1.Sc_
         );
     }
     else
@@ -195,7 +198,8 @@ inline Foam::blottnerEucken2TTransport<Thermo2T> Foam::operator+
             t,
             Y1*st1.AB_ + Y2*st2.AB_,
             Y1*st1.BB_ + Y2*st2.BB_,
-            Y1*st1.CB_ + Y2*st2.CB_
+            Y1*st1.CB_ + Y2*st2.CB_,
+            Y1*st1.Sc_ + Y2*st2.Sc_
         );
     }
 }
@@ -213,7 +217,8 @@ inline Foam::blottnerEucken2TTransport<Thermo2T> Foam::operator*
         s*static_cast<const Thermo2T&>(st),
         st.AB_,
         st.BB_,
-        st.CB_
+        st.CB_,
+        st.Sc_
     );
 }
 

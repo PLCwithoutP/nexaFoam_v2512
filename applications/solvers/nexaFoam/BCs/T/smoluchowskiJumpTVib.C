@@ -266,8 +266,8 @@ void Foam::smoluchowskiJumpTVib::write(Ostream& os) const
     os.writeEntryIfDifferent<word>("psi", "thermo2T:psi", psiName_);
     os.writeEntryIfDifferent<word>("mu", "thermo2T:mu", muName_);
 
-    os.writeEntry("accommodationCoeff", accommodationCoeffVib_);
-    TVibWall_.writeEntry("Twall", os);
+    os.writeEntry("accommodationCoeffVib", accommodationCoeffVib_);
+    TVibWall_.writeEntry("TVibWall", os);
 
     // Note: gamma and Pr are not written — they are derived from the
     // thermo stack at runtime and must not be stored as fixed scalars.

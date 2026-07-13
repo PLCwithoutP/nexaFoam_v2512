@@ -1971,13 +1971,15 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib() const
 
     // internal field
     {
-        const Foam::scalarField& Ti  = this->TTR_.primitiveField();
+        const Foam::scalarField& pi = this->p_.primitiveField();
+        const Foam::scalarField& Ti = this->TTR_.primitiveField();
+        const Foam::scalarField& TVi = this->TVib_.primitiveField();
         Foam::scalarField&       Ki  = K.primitiveFieldRef();
         forAll(Ki, i)
         {
             const typename MixtureType::thermoType& mixture_ =
                 this->cellMixture(i);
-            Ki[i] = mixture_.kappaVib(Ti[i]); // scalar overload
+            Ki[i] = mixture_.kappaVib(pi[i], Ti[i], TVi[i], mixture_.ThetaVib());
         }
     }
 
@@ -2000,7 +2002,9 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib
     const label patchi
 ) const
 {
-    const Foam::scalarField& Tp = this->TTR_.boundaryField()[patchi];
+    const Foam::scalarField& pp  = this->p_.boundaryField()[patchi];
+    const Foam::scalarField& Tp  = this->TTR_.boundaryField()[patchi];
+    const Foam::scalarField& TVp = this->TVib_.boundaryField()[patchi];
 
     Foam::tmp<Foam::scalarField> tKp(new Foam::scalarField(Tp.size()));
     Foam::scalarField& Kp = tKp.ref();
@@ -2010,7 +2014,7 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib
         const typename MixtureType::thermoType& mixture_ =
             this->patchFaceMixture(patchi, facei);
 
-        Kp[facei] = mixture_.kappaVib(Tp[facei]);
+        Kp[facei] = mixture_.kappaVib(pp[facei], Tp[facei], TVp[facei], mixture_.ThetaVib());
     }
 
     return tKp;

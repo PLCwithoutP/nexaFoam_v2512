@@ -235,7 +235,7 @@ public:
         return 0; 
     }
 
-    scalar kappaVib(label, scalar) const override
+    scalar kappaVib(label, scalar, scalar, scalar, scalar) const override
     { 
         FatalErrorInFunction 
             << "kappaVib() called on pure mixture" 

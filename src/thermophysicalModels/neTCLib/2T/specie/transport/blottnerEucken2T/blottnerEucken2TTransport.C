@@ -49,7 +49,8 @@ Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport(const dicti
     Thermo2T(dict),
     AB_(readCoeff("AB", dict)),
     BB_(readCoeff("BB", dict)),
-    CB_(readCoeff("CB", dict))
+    CB_(readCoeff("CB", dict)),
+    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.70))
 {}
 
 
@@ -63,7 +64,8 @@ Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport
     Thermo2T(t),
     AB_(readCoeff("AB", dict)),
     BB_(readCoeff("BB", dict)),
-    CB_(readCoeff("CB", dict))
+    CB_(readCoeff("CB", dict)),
+    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.70))
 {}
 
 
@@ -82,6 +84,7 @@ void Foam::blottnerEucken2TTransport<Thermo2T>::write(Ostream& os) const
         os.writeEntry("AB", AB_);
         os.writeEntry("BB", BB_);
         os.writeEntry("CB", CB_);
+        os.writeEntry("Sc", Sc_);
         os.endBlock();
     }
 

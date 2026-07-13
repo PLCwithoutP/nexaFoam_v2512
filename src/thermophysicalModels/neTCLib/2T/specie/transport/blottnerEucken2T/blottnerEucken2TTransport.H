@@ -43,11 +43,10 @@ Description
     \f]
     T is translational temperature.
 
-    Thermal conductivity [kg/m.s]
+    Thermal conductivity [W/m.K]
     \f[
         \kappa_tr = \mu_s (\frac{5}{2}*c_{v,t,s} + c_{v,r,s})
-        \kappa_v = \nu_v * \mu_s
-        \nu_v = 1.2
+        \kappa_v = \mu_s * c_{v,vib,s}(T_v) / Sc_s
     \f]
     Holds until 6000 K.
 
@@ -105,6 +104,7 @@ class blottnerEucken2TTransport
         // Blottner's coefficients
         scalar AB_, BB_, CB_;
 
+        scalar Sc_;
     // Private Member Functions
 
         //- Read coefficient from dictionary
@@ -124,7 +124,8 @@ public:
             const Thermo2T& t,
             const scalar AB,
             const scalar BB,
-            const scalar CB
+            const scalar CB,
+            const scalar Sc
         );
 
         //- Construct as named copy
@@ -158,7 +159,13 @@ public:
         inline scalar kappaTR(const scalar p, const scalar TTR) const;
 
         //- Thermal vibrational conductivity [W/mK]
-        inline scalar kappaVib(const scalar TTR) const;
+        inline scalar kappaVib
+        (
+            const scalar p,
+            const scalar TTR,
+            const scalar TVib,
+            const scalar ThetaVib
+        ) const;
 
         //- Thermal diffusivity of enthalpy [kg/ms]
         inline scalar alphah(const scalar p, const scalar TTR) const;

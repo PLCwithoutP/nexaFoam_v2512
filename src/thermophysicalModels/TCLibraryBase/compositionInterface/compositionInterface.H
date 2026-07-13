@@ -144,7 +144,10 @@ public:
     virtual scalar kappaVib
     (
         label  speciei,
-        scalar TTR
+        scalar p,
+        scalar TTR,
+        scalar TVib,
+        scalar thetaVib
     ) const = 0;
 
     virtual scalar alphah
