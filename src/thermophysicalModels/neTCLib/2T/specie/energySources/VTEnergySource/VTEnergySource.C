@@ -43,6 +43,9 @@ Foam::VTEnergySource<MixtureType, MixingRule>::VTEnergySource
     names_(mixture.species()),
     sigma_prime_ (3e-21), // N2, O2, NO
     boltzmann_const_ (1.380649e-23),
+    AMW_(0),
+    BMW_(0),
+    mwCoeffsLoaded_(false),
     Q_VTList_()
 {
 
@@ -50,6 +53,83 @@ Foam::VTEnergySource<MixtureType, MixingRule>::VTEnergySource
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class MixtureType, class MixingRule>
+void Foam::VTEnergySource<MixtureType, MixingRule>::loadMWCoeffs
+(
+    const fvMesh& mesh
+)
+{
+    if (mwCoeffsLoaded_) return;
+
+    const label nSpec = mix_.Y().size();
+    AMW_ = scalarSquareMatrix(nSpec);
+    BMW_ = scalarSquareMatrix(nSpec);
+
+    // 1) Fill every pair with the Millikan-White correlation
+    //    (identical to the previous hard-coded behaviour)
+    for (label s = 0; s < nSpec; ++s)
+    {
+        for (label r = 0; r < nSpec; ++r)
+        {
+            const scalar mu_sr = (Wi(s)*Wi(r))/(Wi(s) + Wi(r));
+            AMW_[s][r] = 1.16e-3*pow(mu_sr, 0.5)*pow(thetai(s), 4.0/3.0);
+            BMW_[s][r] = 0.015*pow(mu_sr, 0.25);
+        }
+    }
+
+    // 2) Override from thermophysicalProperties, where entries exist
+    IOdictionary thermophysicalProperties
+    (
+        IOobject
+        (
+            "thermophysicalProperties",
+            mesh.time().constant(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            false
+        )
+    );
+
+    if (!thermophysicalProperties.found("MillikanWhiteCoefficients"))
+    {
+        WarningInFunction
+            << "'MillikanWhiteCoefficients' not found in thermophysicalProperties. "
+            << "Using the MW correlation for all pairs." << nl;
+        mwCoeffsLoaded_ = true;
+        return;
+    }
+
+    const dictionary& mwDict =
+        thermophysicalProperties.subDict("MillikanWhiteCoefficients");
+
+    // Molecule-first keys ONLY (RELAXER_COLLIDER). No reversed-key
+    // fallback: N2_O and O_N2 are physically different statements,
+    // and atomic relaxers never use these values anyway.
+    for (label s = 0; s < nSpec; ++s)
+    {
+        if (!mix_.isSpecieMolecular(s)) continue;
+
+        for (label r = 0; r < nSpec; ++r)
+        {
+            const word key = names_[s] + "_" + names_[r];
+
+            if (mwDict.found(key))
+            {
+                const dictionary& pairDict = mwDict.subDict(key);
+                pairDict.readIfPresent("A", AMW_[s][r]);
+                pairDict.readIfPresent("B", BMW_[s][r]);
+
+                Info<< "MW override: " << key
+                    << " A=" << AMW_[s][r]
+                    << " B=" << BMW_[s][r] << nl;
+            }
+        }
+    }
+
+    mwCoeffsLoaded_ = true;
+}
 
 template<class MixtureType, class MixingRuleType>
 void Foam::VTEnergySource<MixtureType, MixingRuleType>::makeQVibSourceFields
@@ -210,9 +290,7 @@ Foam::VTEnergySource<MixtureType, MixingRule>::A_sr
     const label r
 )
 {
-    scalar val = 1.16e-3;
-    //Info << "A for specie " << s << " against specie " << r << "is : " << val * pow((Wi(s)*1e-3*Wi(r)*1e-3)/(Wi(s)*1e-3 + Wi(r)*1e-3) , 0.5) * pow(thetai(s), 4.0/3.0) << nl;
-    return val * pow((Wi(s)*Wi(r))/(Wi(s) + Wi(r)) , 0.5) * pow(thetai(s), 4.0/3.0);
+    return AMW_[s][r];
 }
 
 template<class MixtureType, class MixingRule>
@@ -223,9 +301,7 @@ Foam::VTEnergySource<MixtureType, MixingRule>::B_sr
     const label r
 )
 {
-    scalar val = 0.015;
-    //Info << "B for specie " << s  << " against specie " << r << "is : " << val * pow((Wi(s)*1e-3*Wi(r)*1e-3)/(Wi(s)*1e-3 + Wi(r)*1e-3) , 0.25) << nl;
-    return val * pow((Wi(s)*Wi(r))/(Wi(s) + Wi(r)) , 0.25);
+    return BMW_[s][r];
 }
 
 template<class MixtureType, class MixingRule>
@@ -321,6 +397,7 @@ Foam::VTEnergySource<MixtureType, MixingRule>::correctVibSource
 )
 {
     makeQVibSourceFields(TTR.mesh());
+    loadMWCoeffs(TTR.mesh());
 
     mr_.precomputeXi();
 
@@ -358,6 +435,7 @@ Foam::VTEnergySource<MixtureType, MixingRule>::correctVTRelaxationTime
 )
 {
     makeQVibSourceFields(TTR.mesh());
+    loadMWCoeffs(TTR.mesh());
     mr_.precomputeXi(); 
     
     const scalarField& pCells   = p.primitiveField();

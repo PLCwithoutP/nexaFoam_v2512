@@ -16,57 +16,62 @@ License
     (at your option) any later version.
 
 Class
-    Foam::functionObjects::neWallHeatFlux
+    Foam::functionObjects::neVibWallHeatFlux
 
 Group
     grpFieldFunctionObjects
 
 Description
-    Computes the translational-rotational conductive wall heat flux [W/m^2]
-    on wall patches:
+    Computes the vibrational-electronic conductive wall heat flux [W/m^2]
+    on wall patches, for two-temperature runs:
 
     \f[
-        q_w = \kappa_{TR}\,\frac{\partial T_{TR}}{\partial n}
+        q_{w,\text{vib}} = \kappa_{Ve}\,\frac{\partial T_{Vib}}{\partial n}
     \f]
 
     Positive into the wall (cold-wall heating). Conductivity is read from a
     written field (publish it in the solver, like muLam); temperature from
-    TTR. Field lookups only, so the object works at runtime and under
+    TVib. Field lookups only, so the object works at runtime and under
     nexaFoam -postProcess / postProcess.
 
-    For the vibrational-electronic counterpart (kappaVe / TVib), see
-    neVibWallHeatFlux.
+    Unlike the translational-rotational term in neWallHeatFlux, kappaVe and
+    TVib are not optional here: this object exists specifically to report
+    the vibrational term, so a missing field is a configuration error and
+    lookupOrReadScalar's MUST_READ will fail fatally rather than silently
+    skipping the term. Only add this function object to 2T cases; for 1T /
+    pure-gas / non-reacting runs, use neWallHeatFlux alone.
 
 Usage
     \verbatim
-    wallHeatFlux
+    wallHeatFluxVib
     {
-        type            neWallHeatFlux;
+        type            neVibWallHeatFlux;
         libs            ("libnexaFieldFunctionObjects.so");
 
-        kappaTR         kappaPP;    // conductivity field name (default "kappaTR")
-        TTR             TTR;        // optional, default "TTR"
+        kappaVe         kappaVe;    // vib conductivity field (default "kappaVe")
+        TVib            TVib;       // vib temperature field (default "TVib")
 
         // Optional: reference the wall-normal gradient to a fixed solid wall
-        // temperature instead of the stored boundary face value. Use for
-        // temperature-jump walls under -postProcess, whose written face value
-        // collapses onto the near-wall cell (zero gas-side gradient on disk).
-        // Twall           297.2;
+        // vibrational temperature instead of the stored boundary face value.
+        // Use for temperature-jump walls under -postProcess, whose written
+        // face value collapses onto the near-wall cell (zero gas-side
+        // gradient on disk).
+        // TVibWall        297.2;
 
-        patches         (cone);     // optional, default = all wall patches
-        result          wallHeatFlux; // optional, default = <function name>
+        patches         (cone);        // optional, default = all wall patches
+        result          wallHeatFluxVib; // optional, default = <function name>
         writeControl    writeTime;
         log             yes;
     }
     \endverbatim
 
 SourceFiles
-    neWallHeatFlux.C
+    neVibWallHeatFlux.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_neWallHeatFlux_H
-#define functionObjects_neWallHeatFlux_H
+#ifndef functionObjects_neVibWallHeatFlux_H
+#define functionObjects_neVibWallHeatFlux_H
 
 #include "fvMeshFunctionObject.H"
 #include "writeFile.H"
@@ -81,28 +86,28 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class neWallHeatFlux Declaration
+                     Class neVibWallHeatFlux Declaration
 \*---------------------------------------------------------------------------*/
 
-class neWallHeatFlux
+class neVibWallHeatFlux
 :
     public fvMeshFunctionObject,
     public writeFile
 {
     // Private Data
 
-        //- Name of the translational-rotational conductivity field
-        word kappaTRName_;
+        //- Name of the vibrational-electronic conductivity field
+        word kappaVeName_;
 
-        //- Name of the translational-rotational temperature field
-        word TTRName_;
+        //- Name of the vibrational temperature field
+        word TVibName_;
 
-        //- Optional fixed solid wall temperature [K] used as the gradient
-        //  reference (for temperature-jump walls under -postProcess)
-        scalar Twall_;
+        //- Optional fixed solid wall vibrational temperature [K] used as the
+        //  gradient reference (for temperature-jump walls under -postProcess)
+        scalar TVibWall_;
 
-        //- True when Twall was supplied in the dictionary
-        bool haveTwall_;
+        //- True when TVibWall was supplied in the dictionary
+        bool haveTVibWall_;
 
         //- Name of the result field stored on the registry
         word resultName_;
@@ -117,7 +122,8 @@ class neWallHeatFlux
         virtual void writeFileHeader(Ostream& os) const;
 
         //- Return a registered scalar field, or read it from the current time
-        //  directory if absent (post-process mode).
+        //  directory if absent (post-process mode). Fatal if not found in
+        //  either place, since kappaVe/TVib are mandatory for this object.
         tmp<volScalarField> lookupOrReadScalar(const word& fieldName) const;
 
         //- Accumulate kappa*(T_cell - T_face)/delta into the wall boundary of
@@ -133,20 +139,20 @@ class neWallHeatFlux
         ) const;
 
         //- No copy construct / assignment
-        neWallHeatFlux(const neWallHeatFlux&) = delete;
-        void operator=(const neWallHeatFlux&) = delete;
+        neVibWallHeatFlux(const neVibWallHeatFlux&) = delete;
+        void operator=(const neVibWallHeatFlux&) = delete;
 
 
 public:
 
     //- Runtime type information
-    TypeName("neWallHeatFlux");
+    TypeName("neVibWallHeatFlux");
 
 
     // Constructors
 
         //- Construct from Time and dictionary
-        neWallHeatFlux
+        neVibWallHeatFlux
         (
             const word& name,
             const Time& runTime,
@@ -155,15 +161,15 @@ public:
 
 
     //- Destructor
-    virtual ~neWallHeatFlux() = default;
+    virtual ~neVibWallHeatFlux() = default;
 
 
     // Member Functions
 
-        //- Read the neWallHeatFlux data
+        //- Read the neVibWallHeatFlux data
         virtual bool read(const dictionary& dict);
 
-        //- Calculate the wall heat-flux field
+        //- Calculate the vibrational wall heat-flux field
         virtual bool execute();
 
         //- Write the field and patch min/max/average

@@ -15,7 +15,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "neWallHeatFlux.H"
+#include "neVibWallHeatFlux.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "fvc.H"
@@ -28,12 +28,12 @@ namespace Foam
 {
 namespace functionObjects
 {
-    defineTypeNameAndDebug(neWallHeatFlux, 0);
+    defineTypeNameAndDebug(neVibWallHeatFlux, 0);
 
     addToRunTimeSelectionTable
     (
         functionObject,
-        neWallHeatFlux,
+        neVibWallHeatFlux,
         dictionary
     );
 }
@@ -42,12 +42,12 @@ namespace functionObjects
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::functionObjects::neWallHeatFlux::writeFileHeader
+void Foam::functionObjects::neVibWallHeatFlux::writeFileHeader
 (
     Ostream& os
 ) const
 {
-    writeHeader(os, "Wall heat flux [W/m^2]");
+    writeHeader(os, "Vibrational-electronic wall heat flux [W/m^2]");
 
     writeCommented(os, "Time");
     writeTabbed(os, "patch");
@@ -59,7 +59,7 @@ void Foam::functionObjects::neWallHeatFlux::writeFileHeader
 
 
 Foam::tmp<Foam::volScalarField>
-Foam::functionObjects::neWallHeatFlux::lookupOrReadScalar
+Foam::functionObjects::neVibWallHeatFlux::lookupOrReadScalar
 (
     const word& fieldName
 ) const
@@ -72,6 +72,10 @@ Foam::functionObjects::neWallHeatFlux::lookupOrReadScalar
         );
     }
 
+    // kappaVe / TVib are mandatory for this object (it exists specifically
+    // to report the vibrational term), so MUST_READ is intentionally left
+    // to fail fatally here rather than being probed first, unlike the
+    // optional-term handling in neWallHeatFlux.
     return tmp<volScalarField>::New
     (
         IOobject
@@ -88,7 +92,7 @@ Foam::functionObjects::neWallHeatFlux::lookupOrReadScalar
 }
 
 
-void Foam::functionObjects::neWallHeatFlux::addConductionTerm
+void Foam::functionObjects::neVibWallHeatFlux::addConductionTerm
 (
     volScalarField::Boundary& qBf,
     const volScalarField& kappa,
@@ -129,7 +133,7 @@ void Foam::functionObjects::neWallHeatFlux::addConductionTerm
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
+Foam::functionObjects::neVibWallHeatFlux::neVibWallHeatFlux
 (
     const word& name,
     const Time& runTime,
@@ -138,10 +142,10 @@ Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
 :
     fvMeshFunctionObject(name, runTime, dict),
     writeFile(obr_, name, typeName, dict),
-    kappaTRName_("kappaTR"),
-    TTRName_("TTR"),
-    Twall_(0.0),
-    haveTwall_(false),
+    kappaVeName_("kappaVe"),
+    TVibName_("TVib"),
+    TVibWall_(0.0),
+    haveTVibWall_(false),
     resultName_(name),
     patchSet_()
 {
@@ -172,20 +176,21 @@ Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::functionObjects::neWallHeatFlux::read(const dictionary& dict)
+bool Foam::functionObjects::neVibWallHeatFlux::read(const dictionary& dict)
 {
     fvMeshFunctionObject::read(dict);
     writeFile::read(dict);
 
-    kappaTRName_ = dict.getOrDefault<word>("kappaTR", "kappaTR");
-    TTRName_     = dict.getOrDefault<word>("TTR", "TTR");
+    kappaVeName_ = dict.getOrDefault<word>("kappaVe", "kappaVe");
+    TVibName_    = dict.getOrDefault<word>("TVib", "TVib");
 
-    // Optional solid wall temperature. If supplied, the wall-normal gradient
-    // is referenced to this fixed surface temperature instead of the stored
-    // boundary face value. Use this when the wall BC is a temperature-jump
-    // type whose written face value collapses onto the near-wall cell under
-    // -postProcess (so the gas-side gradient on disk is zero).
-    haveTwall_ = dict.readIfPresent<scalar>("Twall", Twall_);
+    // Optional solid wall vibrational temperature. If supplied, the
+    // wall-normal gradient is referenced to this fixed surface temperature
+    // instead of the stored boundary face value. Use this when the wall BC
+    // is a temperature-jump type whose written face value collapses onto
+    // the near-wall cell under -postProcess (so the gas-side gradient on
+    // disk is zero).
+    haveTVibWall_ = dict.readIfPresent<scalar>("TVibWall", TVibWall_);
 
     resultName_ = dict.getOrDefault<word>("result", this->name());
 
@@ -225,7 +230,7 @@ bool Foam::functionObjects::neWallHeatFlux::read(const dictionary& dict)
 }
 
 
-bool Foam::functionObjects::neWallHeatFlux::execute()
+bool Foam::functionObjects::neVibWallHeatFlux::execute()
 {
     volScalarField& q =
         mesh_.lookupObjectRef<volScalarField>(resultName_);
@@ -238,16 +243,16 @@ bool Foam::functionObjects::neWallHeatFlux::execute()
         qBf[patchi] = 0.0;
     }
 
-    // --- Translational-rotational conduction (sole term) ---
-    tmp<volScalarField> tkTR = lookupOrReadScalar(kappaTRName_);
-    tmp<volScalarField> tTTR = lookupOrReadScalar(TTRName_);
-    addConductionTerm(qBf, tkTR(), tTTR(), haveTwall_, Twall_);
+    // --- Vibrational-electronic conduction (sole term) ---
+    tmp<volScalarField> tkVe  = lookupOrReadScalar(kappaVeName_);
+    tmp<volScalarField> tTVib = lookupOrReadScalar(TVibName_);
+    addConductionTerm(qBf, tkVe(), tTVib(), haveTVibWall_, TVibWall_);
 
     return true;
 }
 
 
-bool Foam::functionObjects::neWallHeatFlux::write()
+bool Foam::functionObjects::neVibWallHeatFlux::write()
 {
     const volScalarField& q =
         mesh_.lookupObject<volScalarField>(resultName_);
@@ -272,7 +277,7 @@ bool Foam::functionObjects::neWallHeatFlux::write()
         if (Pstream::master())
         {
             Log << "    patch " << patch.name()
-                << " q_w : min = " << minQ << ", max = " << maxQ
+                << " q_w,vib : min = " << minQ << ", max = " << maxQ
                 << ", average = " << avgQ << nl;
 
             writeCurrentTime(file());

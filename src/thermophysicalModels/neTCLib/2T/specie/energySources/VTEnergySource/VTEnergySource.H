@@ -72,9 +72,14 @@ private:
     const speciesTable& names_;
     PtrList<volScalarField> Q_VTList_;
     PtrList<volScalarField> tauVTList_;
+    scalarSquareMatrix AMW_;
+    scalarSquareMatrix BMW_;
+    bool mwCoeffsLoaded_;
 
     const scalar sigma_prime_; // Effective cross section
     const scalar boltzmann_const_; // Boltzmann constant
+
+    void loadMWCoeffs(const fvMesh& mesh);
 
 public:
 
