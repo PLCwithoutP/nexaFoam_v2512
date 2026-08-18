@@ -37,6 +37,7 @@ Description
 #include "neReaction.H"
 
 #include "neIrreversibleReaction.H"
+#include "neReversibleReaction.H"
 
 #include "thermo2T.H"
 
@@ -78,7 +79,7 @@ namespace Foam
 #define makeIRReactions(Thermo, ReactionRate)                                  \
                                                                                \
     makeReaction(Thermo, neIrreversibleReaction, ReactionRate)                   \
-                                                                               
+    makeReaction(Thermo, neReversibleReaction, ReactionRate)                                                          
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

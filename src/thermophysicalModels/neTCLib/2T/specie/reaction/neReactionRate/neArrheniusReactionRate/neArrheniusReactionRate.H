@@ -102,6 +102,15 @@ public:
             const scalarField& c
         ) const;
 
+        //- Natural log of the rate constant. Needed by reversible reactions:
+        //  at low T both kf and Keq underflow while their ratio is fine.
+        inline scalar logk
+        (
+            const scalar p,
+            const scalar T,
+            const scalarField& c
+        ) const;
+        
         //- Write to stream
         inline void write(Ostream& os) const;
 

@@ -76,6 +76,20 @@ inline Foam::scalar Foam::neArrheniusReactionRate::operator()
     return ak;
 }
 
+inline Foam::scalar Foam::neArrheniusReactionRate::logk
+(
+    const scalar p,
+    const scalar T,
+    const scalarField&
+) const
+{
+    const scalar Teff = max(T, SMALL);
+    scalar lnk = Foam::log(max(A_, VSMALL));
+    if (mag(beta_) > VSMALL) { lnk += beta_*Foam::log(Teff); }
+    if (mag(Ta_)   > VSMALL) { lnk -= Ta_/Teff; }
+    return lnk;
+}
+
 
 inline void Foam::neArrheniusReactionRate::write(Ostream& os) const
 {

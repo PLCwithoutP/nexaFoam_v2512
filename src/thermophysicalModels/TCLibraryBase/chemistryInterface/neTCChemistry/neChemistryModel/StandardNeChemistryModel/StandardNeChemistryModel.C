@@ -219,7 +219,7 @@ Foam::scalar Foam::StandardNeChemistryModel<ReactionThermo, ThermoType>::omega
     const scalar Tctrl = controllingTemperature(R, TTR);
 
     const scalar kf = R.kf(p, Tctrl, c);
-    const scalar kr = R.kr(kf, p, Tctrl, c);
+    const scalar kr = R.kr(kf, p, TTR, c);
 
     pf = 1.0;
     pr = 1.0;
@@ -391,7 +391,7 @@ void Foam::StandardNeChemistryModel<ReactionThermo, ThermoType>::jacobian
 
         const scalar Tctrl = controllingTemperature(R, TTR);
         const scalar kf0 = R.kf(p, Tctrl, c_);
-        const scalar kr0 = R.kr(kf0, p, Tctrl, c_);
+        const scalar kr0 = R.kr(kf0, p, TTR, c_);
 
         forAll(R.lhs(), j)
         {
