@@ -103,9 +103,23 @@ inline Foam::scalar Foam::blottnerEucken2TTransport<Thermo2T>::kappaTR
     const scalar p, const scalar TTR
 ) const
 {
-    scalar Cv_T_ = this->CvT(p, TTR);
-    scalar Cv_R_ = this->CvR(p, TTR);
-    return mu(TTR)*((2.5)*Cv_T_ + Cv_R_);
+    // Eucken: kappa_tr = mu*(5/2*Cv_trans + Cv_rot).
+    //
+    // The 5/2 factor applies to TRANSLATION ONLY. Note that CvT() in
+    // HtoEthermo2T.H returns CpTR - R, which for a diatomic is 2.5R --
+    // translation AND rotation, not translation alone. Subtracting CvR()
+    // recovers the translational part (1.5R for both atoms and molecules).
+    //
+    // Without the subtraction a diatomic gets mu*7.25R instead of mu*4.75R,
+    // a factor of 1.526 too high. Atoms are unaffected either way, since
+    // CvR() returns 0 for them.
+    //
+    // DO NOT "fix" this by changing CvT() itself: gamma() in thermo2TI.H is
+    // CpTR/CvT and requires the full translational-rotational value.
+    const scalar Cv_R_ = this->CvR(p, TTR);
+    const scalar Cv_t_ = this->CvT(p, TTR) - Cv_R_;
+
+    return mu(TTR)*(2.5*Cv_t_ + Cv_R_);
 }
 
 template<class Thermo2T>

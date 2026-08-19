@@ -18,9 +18,9 @@ if (useChemistry)
         {
             rhoYi[i][celli] += dtChem*RRi[celli];
 
-            if (rhoYi[i][celli] < SMALL)
+            if (rhoYi[i][celli] < 0)
             {
-                rhoYi[i][celli] = SMALL;
+                rhoYi[i][celli] = 0;
             }
         }
 

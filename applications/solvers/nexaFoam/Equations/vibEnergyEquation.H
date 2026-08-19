@@ -297,7 +297,8 @@ if (use2T)
             IOobject("CvVibMix", runTime.timeName(), mesh,
                     IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
             mesh,
-            dimensionedScalar("small", dimEnergy/dimMass/dimTemperature, SMALL)
+            dimensionedScalar("small", dimEnergy/dimMass/dimTemperature, SMALL),
+            zeroGradientFvPatchScalarField::typeName    
         );
         {
             scalarField& cvv = CvVibMix.primitiveFieldRef();
@@ -337,7 +338,9 @@ if (use2T)
         eV.correctBoundaryConditions();
         rhoEv = rho*eV;
         rhoEv.correctBoundaryConditions();
-
+        rhoE += rho*(eV - eV_before);
+        rhoE.correctBoundaryConditions();
+        
         if (mixtureCheck)
         {
             // Delta eV from vibrational conduction correction
