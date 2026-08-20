@@ -338,8 +338,8 @@ if (use2T)
         eV.correctBoundaryConditions();
         rhoEv = rho*eV;
         rhoEv.correctBoundaryConditions();
-        rhoE += rho*(eV - eV_before);
-        rhoE.correctBoundaryConditions();
+        //rhoE += rho*(eV - eV_before);
+        //rhoE.correctBoundaryConditions();
         
         if (mixtureCheck)
         {
@@ -358,6 +358,34 @@ if (use2T)
                 eVibSpecies[speciei].correctBoundaryConditions();
             }
         }
+        
+            Info<< "  eV     min/max = " << gMin(eV.primitiveField())
+                << " / " << gMax(eV.primitiveField()) << nl;
+            Info<< "  CvVibMix min   = " << gMin(CvVibMix.primitiveField()) << nl;
+            Info<< "  alphaVib max   = " << gMax(alphaVib.primitiveField()) << nl;
+            forAll(Y_species, i)
+            {
+                if (!vibSpecieActive[i]) continue;
+                Info<< "  " << Y_species[i].name()
+                    << "  rhoYi min = " << gMin(rhoYi[i].primitiveField())
+                    << "  eVib max = " << gMax(eVibSpecies[i].primitiveField())
+                    << "  TVib max = " << gMax(TVibSpecies[i].primitiveField()) << nl;
+            }
+            
+            const scalarField& V = mesh.V();
+            const scalar Etot = gSum(rhoE.primitiveField()*V);
+            const scalar Evib = gSum(rhoEv.primitiveField()*V);
+            const scalar dEvibCond = gSum(rho.primitiveField()
+                                   *(eV.primitiveField() - eV_before.primitiveField())*V);
+
+            Info<< "  E_total    = " << Etot
+                << "  E_vib      = " << Evib
+                << "  E_vib/E_tot= " << Evib/Etot << nl
+                << "  dE_vib(conduction) = " << dEvibCond
+                << "   (should be small: boundary flux only)" << nl;
+                
+            Info<< "  max|delta_eV| = " << gMax(mag(eV.primitiveField()
+                                            - eV_before.primitiveField())) << nl;
     }
 }
 
