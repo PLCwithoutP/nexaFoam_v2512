@@ -106,9 +106,14 @@ void Foam::functionObjects::neVibWallHeatFlux::addConductionTerm
 
     for (const label patchi : patchSet_)
     {
-        // Near-wall cell conductivity: the thermo does not reliably populate
-        // the boundary value of kappa, but the adjacent cell value is valid.
-        const scalarField kw(kappa.boundaryField()[patchi].patchInternalField());
+        // Wall-FACE conductivity. he2TThermo::kappaVib(patchi) populates every
+        // boundary face per species from patch-local p/TTR/TVib/Y, so the
+        // patch value is valid and is what the solver's Stage 3 laplacian
+        // uses. patchInternalField() would take kappa from the adjacent CELL:
+        // CvVib is exponential in T, so with TVib_cell ~ 10^3 K against a
+        // 300 K wall that is a several-hundred-fold overestimate, and it makes
+        // the reported flux disagree with the flux the solver applied.
+        const scalarField kw(kappa.boundaryField()[patchi]);
 
         // Explicit wall-normal gradient from stored values, independent of the
         // patch BC's snGrad() (which a jump/slip BC does not evaluate correctly

@@ -1940,6 +1940,7 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaTR
     return tKp;
 }
 
+
 template<class Basic2TThermo, class MixtureType>
 Foam::tmp<Foam::volScalarField>
 Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib() const
@@ -1975,11 +1976,24 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib() const
         const Foam::scalarField& Ti = this->TTR_.primitiveField();
         const Foam::scalarField& TVi = this->TVib_.primitiveField();
         Foam::scalarField&       Ki  = K.primitiveFieldRef();
+        const PtrList<volScalarField>& Yvf = this->Y();
+        const label nSpecie = Yvf.size();
+
         forAll(Ki, i)
         {
-            const typename MixtureType::thermoType& mixture_ =
-                this->cellMixture(i);
-            Ki[i] = mixture_.kappaVib(pi[i], Ti[i], TVi[i], mixture_.ThetaVib());
+            
+            scalar kvMix = 0;
+            for (label speciei = 0; speciei < nSpecie; ++speciei)
+            {
+                kvMix +=
+                    max(Yvf[speciei][i], scalar(0))
+                  * this->composition().kappaVib
+                    (
+                        speciei, pi[i], Ti[i], TVi[i],
+                        this->composition().thetaVib(speciei)
+                    );
+            }
+            Ki[i] = kvMix;
         }
     }
 
@@ -2009,12 +2023,23 @@ Foam::he2TThermo<Basic2TThermo, MixtureType>::kappaVib
     Foam::tmp<Foam::scalarField> tKp(new Foam::scalarField(Tp.size()));
     Foam::scalarField& Kp = tKp.ref();
 
+    const PtrList<volScalarField>& Yvf = this->Y();
+    const label nSpecie = Yvf.size();
+
     forAll(Kp, facei)
     {
-        const typename MixtureType::thermoType& mixture_ =
-            this->patchFaceMixture(patchi, facei);
-
-        Kp[facei] = mixture_.kappaVib(pp[facei], Tp[facei], TVp[facei], mixture_.ThetaVib());
+        scalar kvMix = 0;
+        for (label speciei = 0; speciei < nSpecie; ++speciei)
+        {
+            kvMix +=
+                max(Yvf[speciei].boundaryField()[patchi][facei], scalar(0))
+              * this->composition().kappaVib
+                (
+                    speciei, pp[facei], Tp[facei], TVp[facei],
+                    this->composition().thetaVib(speciei)
+                );
+        }
+        Kp[facei] = kvMix;
     }
 
     return tKp;

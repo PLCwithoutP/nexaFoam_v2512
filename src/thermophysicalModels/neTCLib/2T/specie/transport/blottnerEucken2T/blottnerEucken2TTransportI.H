@@ -116,6 +116,7 @@ inline Foam::scalar Foam::blottnerEucken2TTransport<Thermo2T>::kappaTR
     //
     // DO NOT "fix" this by changing CvT() itself: gamma() in thermo2TI.H is
     // CpTR/CvT and requires the full translational-rotational value.
+
     const scalar Cv_R_ = this->CvR(p, TTR);
     const scalar Cv_t_ = this->CvT(p, TTR) - Cv_R_;
 
@@ -131,6 +132,11 @@ inline Foam::scalar Foam::blottnerEucken2TTransport<Thermo2T>::kappaVib
     const scalar ThetaVib
 ) const
 {
+    if (ThetaVib < SMALL)
+    {
+        return 0.0;
+    }
+    
     return mu(TTR)*this->CvVib(p, TTR, TVib, ThetaVib)/Sc_;
 }
 
