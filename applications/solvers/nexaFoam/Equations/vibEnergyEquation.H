@@ -464,29 +464,66 @@ if (use2T)
         rhoEv = rho*eV;
         rhoEv.correctBoundaryConditions();
 
-        // KNOWN ISSUE: rhoE is not updated for the energy this term moves
-        // between cells, so eTR = rhoE/rho - KE - eV converts it in place
-        // instead of transporting it. See known issues; enabling this alone
-        // was previously unstable and is still open.
-        //rhoE += rho*(eV - eV_before);
-        //rhoE.correctBoundaryConditions();
+        rhoE += rho*(eV - eV_before);
 
         if (mixtureCheck)
         {
-            // Delta eV from vibrational conduction correction
             volScalarField delta_eV("delta_eV", eV - eV_before);
+
+            volScalarField Yactive
+            (
+                IOobject("Yactive", runTime.timeName(), mesh,
+                         IOobject::NO_READ, IOobject::NO_WRITE,
+                         IOobject::NO_REGISTER),
+                mesh,
+                dimensionedScalar("zero", dimless, 0.0)
+            );
+
+            forAll(Y_species, speciei)
+            {
+                if (!vibSpecieActive[speciei]) continue;
+                Yactive += Y_species[speciei];
+            }
+
+            const dimensionedScalar YactiveMin("small", dimless, SMALL);
 
             forAll(Y_species, speciei)
             {
                 if (!vibSpecieActive[speciei]) continue;
 
-                rhoYEvibSpecies[speciei] += rhoYi[speciei]*delta_eV;
+                rhoYEvibSpecies[speciei] +=
+                    rhoYi[speciei]*delta_eV/max(Yactive, YactiveMin);
+
                 rhoYEvibSpecies[speciei].correctBoundaryConditions();
 
                 eVibSpecies[speciei] =
                     rhoYEvibSpecies[speciei]/rhoYi[speciei];
                 eVibSpecies[speciei].correctBoundaryConditions();
             }
+
+            // Round-trip check: this should now be ~1.0 to machine precision.
+            volScalarField eVrebuilt
+            (
+                IOobject("eVrebuilt", runTime.timeName(), mesh,
+                         IOobject::NO_READ, IOobject::NO_WRITE,
+                         IOobject::NO_REGISTER),
+                mesh,
+                dimensionedScalar("zero", eV.dimensions(), 0.0)
+            );
+
+            forAll(Y_species, speciei)
+            {
+                if (!vibSpecieActive[speciei]) continue;
+                eVrebuilt += rhoYEvibSpecies[speciei]/rho;
+            }
+
+            const scalar dNew =
+                gSum((rho*(eVrebuilt - eV_before))().primitiveField()*mesh.V());
+            const scalar dRef =
+                gSum((rho*delta_eV)().primitiveField()*mesh.V());
+
+            Info<< "  [vibRedist] recovered/applied = "
+                << (mag(dRef) > VSMALL ? dNew/dRef : 1.0) << nl;
         }
 
         // ---------------------- diagnostics ----------------------

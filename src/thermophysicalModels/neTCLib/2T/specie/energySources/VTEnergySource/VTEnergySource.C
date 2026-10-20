@@ -346,6 +346,66 @@ Foam::VTEnergySource<MixtureType, MixingRule>::T_s
     const label celli
 )
 {
+    // Atomic species have no vibrational mode: no V-T relaxation.
+    if (!mix_.isSpecieMolecular(s))
+    {
+        return GREAT;
+    }
+
+    scalar sumX            = 0.0;
+    scalar sumX_over_tauMW = 0.0;
+    const label nSpec = mix_.Y().size();
+
+    // Mixture-averaged Millikan-White time only.
+    // The Park limiting-cross-section correction is NOT a pairwise
+    // quantity and must not enter this harmonic average.
+    for (label r = 0; r < nSpec; ++r)
+    {
+        const scalar Xr = mr_.Xi(r, celli);
+
+        if (Xr <= SMALL) continue;
+
+        const scalar tau_sr_MW = T_MW_sr(p, TTR, s, r);
+
+        if (tau_sr_MW <= SMALL) continue;
+
+        sumX            += Xr;
+        sumX_over_tauMW += Xr/tau_sr_MW;
+    }
+
+    // safety: no valid colliders -> avoid 0/0
+    if (sumX_over_tauMW <= SMALL)
+    {
+        return GREAT;
+    }
+
+    const scalar tau_MW = sumX/sumX_over_tauMW;
+
+    // Park correction, evaluated once per species using the TOTAL
+    // number density (not the collider partial density).
+    const scalar nTot = n_total(p, TTR);
+
+    scalar tau_P = GREAT;
+    const scalar denom = c_bar_s(TTR, s)*sigmai(TTR)*nTot;
+
+    if (denom > SMALL)
+    {
+        tau_P = 1.0/denom;
+    }
+
+    return tau_MW + tau_P;
+}
+
+/*template<class MixtureType, class MixingRule>
+Foam::scalar 
+Foam::VTEnergySource<MixtureType, MixingRule>::T_s
+(
+    const scalar p,
+    const scalar TTR,
+    const label s,
+    const label celli
+)
+{
     scalar sumX          = 0.0;
     scalar sumX_over_tau = 0.0;
     const label nSpec = mix_.Y().size();
@@ -369,7 +429,7 @@ Foam::VTEnergySource<MixtureType, MixingRule>::T_s
     }
 
     return sumX/sumX_over_tau;
-}
+}*/
 
 // Classical Landau-Teller Formula
 template<class MixtureType, class MixingRule>

@@ -50,7 +50,7 @@ Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport(const dicti
     AB_(readCoeff("AB", dict)),
     BB_(readCoeff("BB", dict)),
     CB_(readCoeff("CB", dict)),
-    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.70))
+    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.833))
 {}
 
 
@@ -65,7 +65,7 @@ Foam::blottnerEucken2TTransport<Thermo2T>::blottnerEucken2TTransport
     AB_(readCoeff("AB", dict)),
     BB_(readCoeff("BB", dict)),
     CB_(readCoeff("CB", dict)),
-    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.70))
+    Sc_(dict.subDict("transport").getOrDefault<scalar>("Sc", 0.833))
 {}
 
 
