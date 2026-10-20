@@ -216,7 +216,6 @@ void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::calculateVibEnerg
 )
 {
     const bool use2T = this->twoTemperature();
-    const scalar thetaVib_ = this->cellMixture(0).ThetaVib(); 
 
     scalarField& eVibCells = eVib.primitiveFieldRef();
 
@@ -224,20 +223,32 @@ void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::calculateVibEnerg
     const scalarField& TTRCells = TTR.primitiveField();
     const scalarField& TVibCells = TVib.primitiveField();
 
+    using mixingMixtureType = const typename MixtureType::basicSpecie2TMixture;
+    mixingMixtureType& mix = this->composition();
+    const PtrList<volScalarField>& Y = mix.Y();
+
+    if (use2T && Y.empty())
+    {
+        FatalErrorInFunction
+            << "Two-temperature requires a multi-component mixture "
+            << "(multiComponent2TMixture or neReactingMixture); "
+            << "pure mixtures are not supported." << nl
+            << exit(FatalError);
+    }
+
     forAll(TTRCells, celli)
     {
-        const typename MixtureType::thermoType& cellMixture_ =
-            this->cellMixture(celli);
-
         const scalar TVibUse = use2T ? TVibCells[celli] : TTRCells[celli];
 
-        eVibCells[celli] = cellMixture_.EV
-        (
-            pCells[celli],
-            TTRCells[celli],
-            TVibUse,
-            thetaVib_
-        );
+        scalar ev = 0;
+        forAll(Y, s)
+        {
+            ev += Y[s][celli]*mix.EsVib
+            (
+                s, pCells[celli], TTRCells[celli], TVibUse, mix.thetaVib(s)
+            );
+        }
+        eVibCells[celli] = ev;
     }
 
     const volScalarField::Boundary& pBf = p.boundaryField();
@@ -256,18 +267,17 @@ void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::calculateVibEnerg
         {
             forAll(pTTR, facei)
             {
-                const typename MixtureType::thermoType& cellMixture_ =
-                    this->patchFaceMixture(patchi, facei);
-
                 const scalar TVibUse = use2T ? pTVib[facei] : pTTR[facei];
 
-                pesVib[facei] = cellMixture_.EV
-                (
-                    pp[facei],
-                    pTTR[facei],
-                    TVibUse,
-                    thetaVib_
-                );
+                scalar ev = 0;
+                forAll(Y, s)
+                {
+                    ev += Y[s].boundaryField()[patchi][facei]*mix.EsVib
+                    (
+                        s, pp[facei], pTTR[facei], TVibUse, mix.thetaVib(s)
+                    );
+                }
+                pesVib[facei] = ev;
 
             }
         }
@@ -595,7 +605,34 @@ void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correct()
         false           // No need to update old times
     );
 
+    reportClamps();   // Once per time step
+
     DebugInFunction << "Finished" << endl;
+}
+
+template<class BasicNe2TThermo, class MixtureType>
+void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::reportClamps() const
+{
+    // A12 (P-005): one report per time step. Every rank calls correct() in
+    // the same sequence, so the reduction below is collective on all ranks.
+    const label timeIndex = this->TTR_.mesh().time().timeIndex();
+    if (timeIndex == clampReportIndex_)
+    {
+        return;
+    }
+    clampReportIndex_ = timeIndex;
+
+    typedef typename MixtureType::thermoType thermoType;
+
+    const label nClamped =
+        returnReduce(thermoType::nClamped(), sumOp<label>());
+    thermoType::resetClamped();
+
+    if (nClamped > 0)
+    {
+        Info<< "    A12: TAbsLow/TAbsHigh clamp acted on " << nClamped
+            << " T_TR or T_v Newton iterates since the previous report" << nl;
+    }
 }
 
 template<class BasicNe2TThermo, class MixtureType>
@@ -633,11 +670,33 @@ void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVibEnergy(
 }
 
 template<class BasicNe2TThermo, class MixtureType>
+void Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::initEnergySources()
+{
+    if (energyWilke_) return;   // already built
+
+    energyMixtureType& mix = this->composition();
+
+    energyWilke_.reset(new energyMixingRule(mix));
+
+    vtSource_.reset
+    (
+        new VTEnergySource<energyMixtureType, energyMixingRule>(mix, *energyWilke_)
+    );
+    vvSource_.reset
+    (
+        new VVEnergySource<energyMixtureType, energyMixingRule>(mix, *energyWilke_)
+    );
+    cvSource_.reset
+    (
+        new CVEnergySource<energyMixtureType, energyMixingRule>(mix, *energyWilke_)
+    );
+}
+
+template<class BasicNe2TThermo, class MixtureType>
 Foam::PtrList<Foam::volScalarField>&
 Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVibSource()
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-    return emptyList;
+    return emptySourceList_;
 }
 
 template<class BasicNe2TThermo, class MixtureType>
@@ -647,18 +706,9 @@ Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVibSource
     const PtrList<volScalarField>& TVibSpecies
 )
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-    if (!this->twoTemperature()) return emptyList;
-
-    using mixingMixtureType = typename MixtureType::basicSpecie2TMixture;
-    mixingMixtureType& mix = this->composition();
-    using mixingRuleType = Foam::WilkeMR<mixingMixtureType>;
-
-    static mixingRuleType wilkeMix(mix);
-    wilkeMix.precomputeXi(); 
-    static VTEnergySource<mixingMixtureType, mixingRuleType> Q_vt_source(mix, wilkeMix);
-
-    return Q_vt_source.correctVibSource(this->p_, this->TTR_, TVibSpecies);
+    if (!this->twoTemperature()) return emptySourceList_;
+    initEnergySources();
+    return vtSource_->correctVibSource(this->p_, this->TTR_, TVibSpecies);
 }
 
 template<class BasicNe2TThermo, class MixtureType>
@@ -725,37 +775,9 @@ Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctCVSource
     const PtrList<volScalarField::Internal>& RR
 )
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-
-    if (!this->twoTemperature())
-    {
-        return emptyList; // no vibrational energy mode
-    }
-
-    DebugInFunction << endl;
-
-    using mixingMixtureType = typename MixtureType::basicSpecie2TMixture;
-    mixingMixtureType& mix = this->composition();
-
-    using mixingRuleType = Foam::WilkeMR<mixingMixtureType>;
-
-    static mixingRuleType wilkeMix(mix);
-    wilkeMix.precomputeXi(); 
-    static CVEnergySource<mixingMixtureType, mixingRuleType>
-        Q_cv_source(mix, wilkeMix);
-
-    PtrList<volScalarField>& QCVlist =
-        Q_cv_source.correctCVSource
-        (
-            RR,
-            this->p_,
-            this->TTR_,
-            this->TVib_
-        );
-
-    DebugInFunction << "Finished" << endl;
-
-    return QCVlist;
+    if (!this->twoTemperature()) return emptySourceList_;
+    initEnergySources();
+    return cvSource_->correctCVSource(RR, this->p_, this->TTR_, this->TVib_);
 }
 
 
@@ -763,8 +785,7 @@ template<class BasicNe2TThermo, class MixtureType>
 Foam::PtrList<Foam::volScalarField>&
 Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVibVibSource()
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-    return emptyList;
+    return emptySourceList_;
 }
 
 template<class BasicNe2TThermo, class MixtureType>
@@ -774,53 +795,18 @@ Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVibVibSource
     const PtrList<volScalarField>& TVibSpecies
 )
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-
-    if (!this->twoTemperature())
-    {
-        return emptyList;
-    }
-
-    using mixingMixtureType = typename MixtureType::basicSpecie2TMixture;
-    mixingMixtureType& mix = this->composition();
-
-    using mixingRuleType = Foam::WilkeMR<mixingMixtureType>;
-
-    static mixingRuleType wilkeMix(mix);
-    wilkeMix.precomputeXi(); 
-    static VVEnergySource<mixingMixtureType, mixingRuleType> Q_vv_source(mix, wilkeMix);
-
-    return Q_vv_source.correctVibVibSource(this->p_, this->TTR_, TVibSpecies);
+    if (!this->twoTemperature()) return emptySourceList_;
+    initEnergySources();
+    return vvSource_->correctVibVibSource(this->p_, this->TTR_, TVibSpecies);
 }
 
 template<class BasicNe2TThermo, class MixtureType>
 Foam::PtrList<Foam::volScalarField>&
 Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::correctVTRelaxationTime()
 {
-    static Foam::PtrList<Foam::volScalarField> emptyList;
-
-    if (!this->twoTemperature())
-    {
-        return emptyList; // no vibrational energy mode
-    }
-
-    DebugInFunction << endl;
-
-    using mixingMixtureType = typename MixtureType::basicSpecie2TMixture;
-    mixingMixtureType& mix = this->composition();
-
-    using mixingRuleType = Foam::WilkeMR<mixingMixtureType>;
-
-    static mixingRuleType wilkeMix(mix);
-    wilkeMix.precomputeXi(); 
-    static VTEnergySource<mixingMixtureType, mixingRuleType> Q_vt_source(mix, wilkeMix);
-
-    PtrList<volScalarField>& TauList =
-        Q_vt_source.correctVTRelaxationTime(this->p_, this->TTR_);
-
-    DebugInFunction << "Finished" << endl;
-
-    return TauList;
+    if (!this->twoTemperature()) return emptySourceList_;
+    initEnergySources();
+    return vtSource_->correctVTRelaxationTime(this->p_, this->TTR_);
 }
 
 // ************************************************************************* //

@@ -135,6 +135,7 @@ inline Foam::scalar Foam::janaf2TThermo<EquationOfState>::limit
 {
     if (TTR < TAbsLow_ || TTR > TAbsHigh_)
     {
+        ++nClamped_;
         if (warnOutOfRange_)
         {
             WarningInFunction

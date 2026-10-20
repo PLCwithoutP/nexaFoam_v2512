@@ -116,6 +116,7 @@ private:
         bool convertCoeffs_;
         bool warnOutOfRange_;   // suppress JANAF out-of-range warnings if false
 
+        static label nClamped_;
     // Private Member Functions
 
         //- Check that input data is valid
@@ -163,6 +164,11 @@ public:
         //- Limit the temperature to be in the range TAbsLow_ to TAbsHigh_
         inline scalar limit(const scalar TTR) const;
 
+        // Number of clamped evaluations since the last reset
+        static label nClamped() { return nClamped_; }
+
+        // Reset the clamp counter
+        static void resetClamped() { nClamped_ = 0; }
 
         // Access
 
@@ -262,6 +268,9 @@ public:
         );
 };
 
+// One counter per thermo instantiation, shared by every species
+template<class EquationOfState>
+label janaf2TThermo<EquationOfState>::nClamped_ = 0;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

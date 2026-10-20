@@ -54,10 +54,18 @@ inline scalar CvVib
     {
         return 0;
     }
+    if (TVib <= SMALL)
+    {
+        return 0;   // A7: same guard as the gcc branch
+    }
     else
     {
         volatile const scalar cpmcvTR = EquationOfState::CpMCv(p, TTR);
         volatile const scalar x = 0.5*ThetaVib/TVib;
+        if (x > 700)
+        {
+            return 0;   // A11: sinh(x) would overflow; (x/sinh x)^2 underflows to 0
+        }
         volatile const scalar xOverSinh = x/sinh(x);
         return cpmcvTR*xOverSinh*xOverSinh;
     }
@@ -73,6 +81,10 @@ inline scalar CvVib
     else
     {
         const scalar x = 0.5*ThetaVib/TVib;
+        if (x > 700)
+        {
+            return 0;   // A11: sinh(x) would overflow; (x/sinh x)^2 underflows to 0
+        }
         const scalar xOverSinh = x/sinh(x);
         return EquationOfState::CpMCv(p, TTR)*xOverSinh*xOverSinh;
     }
@@ -135,8 +147,16 @@ inline scalar EsVib
     {
         return 0;
     }
+    if (TVib <= SMALL)
+    {
+        return 0;   // A7: same guard as the gcc branch
+    }
     else
     {
+        if (ThetaVib/TVib > 700)
+        {
+            return 0;   // A11: exp(theta/TVib) would overflow; e_v < 1e-300 R theta
+        }
         volatile const scalar div = exp(ThetaVib/TVib) - 1;
         volatile const scalar cpmcvTR = EquationOfState::CpMCv(p, TTR);
         return cpmcvTR*ThetaVib/div;
@@ -152,6 +172,10 @@ inline scalar EsVib
     }
     else
     {
+        if (ThetaVib/TVib > 700)
+        {
+            return 0;   // A11: exp(theta/TVib) would overflow; e_v < 1e-300 R theta
+        }
         return EquationOfState::CpMCv(p, TTR)*ThetaVib/(exp(ThetaVib/TVib) - 1);
     }
     #endif

@@ -27,6 +27,7 @@ License
 
 #include "VVEnergySource.H"
 #include "fvMesh.H"
+#include "fundamentalConstants.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -41,8 +42,8 @@ Foam::VVEnergySource<MixtureType, MixingRule>::VVEnergySource
     mix_(mixture),
     mr_(MR),
     names_(mixture.species()),
-    boltzmann_const_ (1.380649e-23),
-    avagadro_const_ (6.022e23),
+    boltzmann_const_ (constant::physicoChemical::k.value()),
+    avagadro_const_ (constant::physicoChemical::NA.value()),
     sigma_(0),
     P_(0),
     knabCoeffsLoaded_(false),

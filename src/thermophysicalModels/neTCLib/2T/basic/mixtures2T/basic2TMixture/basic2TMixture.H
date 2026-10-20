@@ -242,6 +242,14 @@ public:
             << exit(FatalError); 
         return 0; 
     }
+  
+    scalar CvVib(label, scalar, scalar, scalar, scalar) const override
+    {
+        FatalErrorInFunction
+            << "CvVib() called on pure mixture"
+            << exit(FatalError); 
+        return 0;
+    }
 
     scalar alphah(label, scalar, scalar) const override
     { 
