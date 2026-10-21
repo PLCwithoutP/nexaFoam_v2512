@@ -439,9 +439,11 @@ public:
 
         //- True only when vibrational temperature is both enabled
         //- physically and owned/updated by this thermo object
+        //  No caller in the library or in nexaFoam; the keyword is read
+        //  for compatibility only (the solver inverts T_v itself).
         bool updateTVib() const noexcept
         {
-            return TOwnerVib_ && twoTemperature_;;
+            return TOwnerVib_ && twoTemperature_;
         }
 
         //- True if two-temperature physics is enabled
