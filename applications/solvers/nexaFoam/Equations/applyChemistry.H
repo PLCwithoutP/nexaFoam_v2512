@@ -10,6 +10,7 @@ if (useChemistry)
     PtrList<volScalarField>& Y = thermo2T.composition().Y();
     const label nSpec = Y.size();
 
+    label nNegChem = 0;     // P3-05 (D3.2)
     for (label i = 0; i < nSpec; ++i)
     {
         const volScalarField::Internal& RRi = chemistryPtr->RR(i);
@@ -18,13 +19,22 @@ if (useChemistry)
         {
             rhoYi[i][celli] += dtChem*RRi[celli];
 
-            if (rhoYi[i][celli] < SMALL)
+            // P3-05 (D3.2): no floor on the conserved rhoYi. An overshoot of
+            // the split chemistry update is counted (B4, Phase 6) and clipped
+            // only in the property field Y (step 4 below).
+            if (rhoYi[i][celli] < 0)
             {
-                rhoYi[i][celli] = SMALL;
+                ++nNegChem;
             }
         }
 
         rhoYi[i].correctBoundaryConditions();
+    }
+    reduce(nNegChem, sumOp<label>());
+    if (nNegChem > 0)
+    {
+        Info<< "    [chem] negative rhoY_s after the chemistry update kept: "
+            << nNegChem << " species-cells" << nl;
     }
 
     // 3) Rebuild mixture density from partial densities
