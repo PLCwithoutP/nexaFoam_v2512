@@ -43,20 +43,8 @@ Usage
     {
         type            neWallHeatFlux;
         libs            ("libnexaFieldFunctionObjects.so");
-
-        kappaTR         kappaPP;    // conductivity field name (default "kappaTR")
-        TTR             TTR;        // optional, default "TTR"
-
-        // Optional: reference the wall-normal gradient to a fixed solid wall
-        // temperature instead of the stored boundary face value. Use for
-        // temperature-jump walls under -postProcess, whose written face value
-        // collapses onto the near-wall cell (zero gas-side gradient on disk).
-        // Twall           297.2;
-
-        patches         (cone);     // optional, default = all wall patches
-        result          wallHeatFlux; // optional, default = <function name>
+        qFields         (qWallTR qWallVib);    // 1T: (qWallTR)
         writeControl    writeTime;
-        log             yes;
     }
     \endverbatim
 
@@ -109,6 +97,9 @@ class neWallHeatFlux
 
         //- Wall patches to process (resolved in read(); empty => all walls)
         labelHashSet patchSet_;
+
+        //- Solver wall heat-flux fields to report (P4-08); empty: kappa dT/dn
+        wordList qFieldNames_;
 
 
     // Private Member Functions

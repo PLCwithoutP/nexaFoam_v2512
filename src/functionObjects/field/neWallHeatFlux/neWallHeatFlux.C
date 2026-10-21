@@ -143,7 +143,8 @@ Foam::functionObjects::neWallHeatFlux::neWallHeatFlux
     Twall_(0.0),
     haveTwall_(false),
     resultName_(name),
-    patchSet_()
+    patchSet_(),
+    qFieldNames_()
 {
     read(dict);
 
@@ -188,6 +189,7 @@ bool Foam::functionObjects::neWallHeatFlux::read(const dictionary& dict)
     haveTwall_ = dict.readIfPresent<scalar>("Twall", Twall_);
 
     resultName_ = dict.getOrDefault<word>("result", this->name());
+    qFieldNames_ = dict.getOrDefault<wordList>("qFields", wordList());
 
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
     patchSet_ = pbm.patchSet(dict.getOrDefault<wordRes>("patches", wordRes()));
@@ -236,6 +238,20 @@ bool Foam::functionObjects::neWallHeatFlux::execute()
     for (const label patchi : patchSet_)
     {
         qBf[patchi] = 0.0;
+    }
+
+    if (qFieldNames_.size())
+    {
+        // P4-08 (D4.5): the solver's own wall heat flux fields
+        for (const word& fName : qFieldNames_)
+        {
+            tmp<volScalarField> tq = lookupOrReadScalar(fName);
+            for (const label patchi : patchSet_)
+            {
+                qBf[patchi] += tq().boundaryField()[patchi];
+            }
+        }
+        return true;
     }
 
     // --- Translational-rotational conduction (sole term) ---
