@@ -1,6 +1,3 @@
-U/maxwellSlipU.C
-T/smoluchowskiJumpT.C
-T/smoluchowskiJumpTVib.C
 rho/fixed2TRhoFvPatchScalarField.C
 U/neMaxwellSlipUFvPatchVectorField.C
 T/neSmoluchowskiJumpTRFvPatchScalarField.C

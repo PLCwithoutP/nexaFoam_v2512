@@ -160,22 +160,28 @@ if (solveSpeciesVib)
     {
         const word sName = Y_species[speciei].name();
 
-        TVibSpecies.set
+        // A per-molecule T_v field is read from 0/TVib_<Y name>
+        // when the case provides one (per-molecule wall BC, e.g.
+        // neSmoluchowskiJumpTv); otherwise it is a copy of the mixture TVib.
+        IOobject TVsIO
         (
-            speciei,
-            new volScalarField
-            (
-                IOobject
-                (
-                    "TVib_" + sName,
-                    runTime.timeName(),
-                    mesh,
-                    IOobject::NO_READ,
-                    IOobject::AUTO_WRITE
-                ),
-                TVib
-            )
+            "TVib_" + sName,
+            runTime.timeName(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::AUTO_WRITE
         );
+
+        if (TVsIO.typeHeaderOk<volScalarField>(true))
+        {
+            Info<< "Reading per-molecule field " << TVsIO.name() << nl;
+            TVibSpecies.set(speciei, new volScalarField(TVsIO, mesh));
+        }
+        else
+        {
+            TVsIO.readOpt(IOobject::NO_READ);
+            TVibSpecies.set(speciei, new volScalarField(TVsIO, TVib));
+        }
 
         eVibSpecies.set
         (
@@ -565,4 +571,110 @@ if (use2T)
 {
     kappaVe = thermo2T.kappaVib();   
 }
+
+// ---- Transport, per-molecule jump and
+//      wall heat-flux fields ---------------------------------------------------
+
+// Lewis number of the Fick model (C5): keyword Le in thermophysicalProperties,
+// default 1.4 as before
+const scalar LeNum =
+    IOdictionary
+    (
+        IOobject
+        (
+            "thermophysicalProperties",
+            runTime.constant(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        )
+    ).getOrDefault<scalar>("Le", 1.4);
+
+Info<< "Fick diffusion: Le = " << LeNum << nl << endl;
+
+// Wilke-mixed kappa_TR (transportUpdate.H); registered: the TR jump BC
+// (neSmoluchowskiJumpTR) reads its patch values
+volScalarField kappaTRW
+(
+    IOobject
+    (
+        "kappaTRW",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    thermo2T.kappaTR()
+);
+
+// Frozen TR heat capacity of the mixture, c_v,TR = sum_s Y_s (c_p,s - R_s)
+volScalarField cvTRmix
+(
+    IOobject
+    (
+        "cvTRmix",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE,
+        IOobject::NO_REGISTER
+    ),
+    mesh,
+    dimensionedScalar("one", dimEnergy/dimMass/dimTemperature, 1.0)
+);
+
+// Gamma_v,m = Y_m Gh_m (G3), read by the per-molecule T_v jump BC
+PtrList<volScalarField> GammaVibSpecies(Y_species.size());
+forAll(Y_species, speciei)
+{
+    GammaVibSpecies.set
+    (
+        speciei,
+        new volScalarField
+        (
+            IOobject
+            (
+                "GammaVib_" + Y_species[speciei].name(),
+                runTime.timeName(),
+                mesh,
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            mesh,
+            dimensionedScalar("zero", dimMass/dimLength/dimTime, 0.0)
+        )
+    );
+}
+
+// Wall heat flux from the solver's own conduction fluxes [W/m^2],
+// positive into the wall (D4.5)
+volScalarField qWallTR
+(
+    IOobject
+    (
+        "qWallTR",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimEnergy/dimTime/dimArea, 0.0)
+);
+
+volScalarField qWallVib
+(
+    IOobject
+    (
+        "qWallVib",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::AUTO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("zero", dimEnergy/dimTime/dimArea, 0.0)
+);
+
 kappaVe.correctBoundaryConditions();
