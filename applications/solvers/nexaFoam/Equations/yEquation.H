@@ -75,7 +75,7 @@ if (mixtureCheck)
         const scalarField& rYi = rhoYi[i].primitiveField();
         forAll(rYi, celli)
         {
-            if (rYi[celli] < 0)
+            if (rYi[celli] < -1e-12*rho[celli])
             {
                 ++nNegY;
                 negMass -= rYi[celli]*mesh.V()[celli];
@@ -86,7 +86,7 @@ if (mixtureCheck)
     reduce(negMass, sumOp<scalar>());
     if (nNegY > 0)
     {
-        Info<< "    [Y] negative rhoY_s kept in the conserved field: " << nNegY
+        Info<< "    [Y] rhoY_s < -1e-12 rho kept in the conserved field: " << nNegY
             << " species-cells, " << negMass << " kg in total" << nl;
     }
 

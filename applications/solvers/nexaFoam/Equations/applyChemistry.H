@@ -22,7 +22,7 @@ if (useChemistry)
             // P3-05 (D3.2): no floor on the conserved rhoYi. An overshoot of
             // the split chemistry update is counted (B4, Phase 6) and clipped
             // only in the property field Y (step 4 below).
-            if (rhoYi[i][celli] < 0)
+            if (rhoYi[i][celli] < -1e-12*rho[celli])
             {
                 ++nNegChem;
             }
@@ -33,7 +33,7 @@ if (useChemistry)
     reduce(nNegChem, sumOp<label>());
     if (nNegChem > 0)
     {
-        Info<< "    [chem] negative rhoY_s after the chemistry update kept: "
+        Info<< "    [chem] rhoY_s < -1e-12 rho after the chemistry update kept: "
             << nNegChem << " species-cells" << nl;
     }
 
