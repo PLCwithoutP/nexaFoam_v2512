@@ -90,14 +90,19 @@ if (use2T)
                 QVTi + QVVi + QCVi
             );
 
-            rhoYi[speciei].max(SMALL);
-            rhoYEvibSpecies[speciei].primitiveFieldRef() =
-                max(rhoYEvibSpecies[speciei].primitiveField(),
-                    scalarField(rhoYEvibSpecies[speciei].size(), scalar(0)));
+            // ---- P3-02 (G4, D3.2) ------------------------------------------
+            // No floor on the conserved rhoYi, no clip of eps_m = rhoYEvib.
+            // e_v,m = eps_m/rhoY_m with the denominator bounded below by
+            // YTrace*rho, so a trace molecule never gets an absurd e_v (K2);
+            // its cells are reset by the trace guard in Stage 2. A negative
+            // eps_m is kept (conservation) and gives T_v = T_TR (D3.3).
             rhoYEvibSpecies[speciei].correctBoundaryConditions();
 
-            eVibSpecies[speciei] = rhoYEvibSpecies[speciei]/rhoYi[speciei];
+            eVibSpecies[speciei] =
+                rhoYEvibSpecies[speciei]
+                /max(rhoYi[speciei], vibHelpers::YTrace*rho);
             eVibSpecies[speciei].correctBoundaryConditions();
+            // ---- end P3-02 -------------------------------------------------
         }
 
         eV = dimensionedScalar("zero", eV.dimensions(), 0.0);
@@ -128,11 +133,37 @@ if (use2T)
     }
     else
     {
+        // ---- P3-03 (G1, G4, G2, D3.3) ---------------------------------------
+        // Per molecule: exact closed-form inversion (G1) where Y_m >= YTrace;
+        // T_v = T_TR where e_v <= 0 (D3.3); trace molecules take the mixture T_v
+        // (G4). Mixture T_v: energy-equivalent (G2). Replaces the e_v floor of
+        // 20 J/kg (K1), the library Newton (A6) and the mass-weighted mean (K4).
+        // No conserved field (rhoYi, rhoYEvibSpecies) is modified here.
         const scalarField& pCells   = p.primitiveField();
         const scalarField& TTRCells = TTR.primitiveField();
+        const scalarField& rhoCells = rho.primitiveField();
         scalarField& TVibMixCells   = TVib.primitiveFieldRef();
 
-        // Per-species TVib inversion
+        const label nSp = Y_species.size();
+        scalarList RSp(nSp, Zero);
+        scalarList thetaSp(nSp, Zero);
+        forAll(Y_species, speciei)
+        {
+            if (!vibSpecieActive[speciei]) continue;
+            RSp[speciei]     = mix.R(speciei);
+            thetaSp[speciei] = mix.thetaVib(speciei);
+        }
+
+        // Work lists for the G2 Newton (molecules present in one cell or face)
+        scalarList wY(nSp), wR(nSp), wTh(nSp), wTv(nSp), wEv(nSp);
+
+        label  nTrace   = 0;    // molecule-cells set by the trace guard (G4)
+        label  nNonPos  = 0;    // molecule-cells with e_v <= 0: T_v = T_TR (D3.3)
+        scalar maxRT    = 0;    // G1 round trip: max |EsVib(T_v) - e_v|/e_v
+        scalar maxG2    = 0;    // G2: max relative energy mismatch
+        scalar maxG2f   = 0;    // same on boundary faces (not reported)
+
+        // (a) Cells, molecules present: G1, or T_TR for e_v <= 0
         forAll(Y_species, speciei)
         {
             if (!vibSpecieActive[speciei])
@@ -145,115 +176,158 @@ if (use2T)
 
             scalarField& TVs       = TVibSpecies[speciei].primitiveFieldRef();
             const scalarField& eVs = eVibSpecies[speciei].primitiveField();
+            const scalarField& rYs = rhoYi[speciei].primitiveField();
 
             forAll(TVs, celli)
             {
-                const scalar eVsClamped = max(eVs[celli], scalar(20));
+                if (rYs[celli] < vibHelpers::YTrace*rhoCells[celli]) continue;
 
-                if (eVsClamped < SMALL)
+                if (eVs[celli] <= VSMALL)
                 {
                     TVs[celli] = TTRCells[celli];
+                    ++nNonPos;
                     continue;
                 }
 
-                TVs[celli] = mix.TEVib
+                TVs[celli] =
+                    vibHelpers::TvHO(eVs[celli], RSp[speciei], thetaSp[speciei]);
+
+                const scalar eBack = mix.EsVib
                 (
-                    speciei,
-                    eVsClamped,
-                    pCells[celli],
-                    TTRCells[celli],
-                    TVs[celli]
+                    speciei, pCells[celli], TTRCells[celli], TVs[celli],
+                    thetaSp[speciei]
                 );
+                maxRT = max(maxRT, mag(eBack - eVs[celli])/eVs[celli]);
             }
-
-            const volScalarField::Boundary& pBf   = p.boundaryField();
-            const volScalarField::Boundary& TTRBf = TTR.boundaryField();
-            const volScalarField::Boundary& eVBf  =
-                eVibSpecies[speciei].boundaryField();
-            volScalarField::Boundary& TVBf =
-                TVibSpecies[speciei].boundaryFieldRef();
-
-            forAll(pBf, patchi)
-            {
-                if (TVBf[patchi].fixesValue()) continue;
-                const fvPatchScalarField& pp   = pBf[patchi];
-                const fvPatchScalarField& pTTR = TTRBf[patchi];
-                const fvPatchScalarField& peV  = eVBf[patchi];
-                fvPatchScalarField& pTV        = TVBf[patchi];
-
-                forAll(pp, facei)
-                {
-                    const scalar eVsClamped = max(peV[facei], scalar(20));
-
-                    if (eVsClamped < SMALL)
-                    {
-                        pTV[facei] = pTTR[facei];
-                        continue;
-                    }
-
-                    pTV[facei] = mix.TEVib
-                    (
-                        speciei,
-                        eVsClamped,
-                        pp[facei],
-                        pTTR[facei],
-                        pTV[facei]
-                    );
-                }
-            }
-
-            TVibSpecies[speciei].correctBoundaryConditions();
         }
 
-        // Mixture TVib: mass-fraction-weighted average
+        // (b) Cells: energy-equivalent mixture T_v over the molecules present
         forAll(TVibMixCells, celli)
         {
-            scalar sumY  = 0.0;
-            scalar sumTV = 0.0;
-
+            label n = 0;
             forAll(Y_species, speciei)
             {
                 if (!vibSpecieActive[speciei]) continue;
-                const scalar Yi = max(Y_species[speciei][celli], scalar(0));
-                sumY  += Yi;
-                sumTV += Yi*TVibSpecies[speciei][celli];
+
+                const scalar Ys  = rhoYi[speciei][celli]/rhoCells[celli];
+                const scalar evs = eVibSpecies[speciei][celli];
+                if (Ys < vibHelpers::YTrace || evs <= VSMALL) continue;
+
+                wY[n]  = Ys;
+                wR[n]  = RSp[speciei];
+                wTh[n] = thetaSp[speciei];
+                wTv[n] = TVibSpecies[speciei][celli];
+                wEv[n] = evs;
+                ++n;
             }
 
-            TVibMixCells[celli] = (sumY > SMALL ? sumTV/sumY : 0.0);
+            TVibMixCells[celli] = vibHelpers::TvMix
+            (
+                n, wY, wR, wTh, wTv, wEv, TTRCells[celli], maxG2
+            );
         }
 
-        // NOTE: this writes the TVib patch values directly. On a fixedValue
-        // patch the subsequent correctBoundaryConditions() does NOT restore
-        // the dictionary value, so the wall TVib is whatever the per-species
-        // inversion produced. Intentional for jump/slip walls; for a plain
-        // fixedValue wall it silently overrides 0/TVib. See known issues.
+        // (c) Cells, trace molecules (G4): T_v = mixture T_v, e_v = e_v(T_v).
+        //     eps_m (rhoYEvibSpecies) is not touched.
+        forAll(Y_species, speciei)
+        {
+            if (!vibSpecieActive[speciei]) continue;
+
+            scalarField& TVs       = TVibSpecies[speciei].primitiveFieldRef();
+            scalarField& eVs       = eVibSpecies[speciei].primitiveFieldRef();
+            const scalarField& rYs = rhoYi[speciei].primitiveField();
+
+            forAll(TVs, celli)
+            {
+                if (rYs[celli] >= vibHelpers::YTrace*rhoCells[celli]) continue;
+
+                TVs[celli] = TVibMixCells[celli];
+                eVs[celli] = mix.EsVib
+                (
+                    speciei, pCells[celli], TTRCells[celli], TVs[celli],
+                    thetaSp[speciei]
+                );
+                ++nTrace;
+            }
+        }
+
+        // (d) Boundary faces of patches that do not fix T_v: same three steps.
+        //     Fixed-value and jump (mixed) T_v patches are left to their BCs.
         forAll(TVib.boundaryField(), patchi)
         {
-            if (TVib.boundaryField()[patchi].fixesValue()) continue;
-
             fvPatchScalarField& pTVmix = TVib.boundaryFieldRef()[patchi];
+            if (pTVmix.fixesValue()) continue;
+
+            const fvPatchScalarField& pTTR = TTR.boundaryField()[patchi];
 
             forAll(pTVmix, facei)
             {
-                scalar sumY  = 0.0;
-                scalar sumTV = 0.0;
-
+                label n = 0;
                 forAll(Y_species, speciei)
                 {
                     if (!vibSpecieActive[speciei]) continue;
 
-                    const scalar Yi = max(
-                        Y_species[speciei].boundaryField()[patchi][facei],
-                        scalar(0));
-                    sumY  += Yi;
-                    sumTV += Yi*TVibSpecies[speciei].boundaryField()[patchi][facei];
+                    fvPatchScalarField& pTVs =
+                        TVibSpecies[speciei].boundaryFieldRef()[patchi];
+                    const scalar Ys =
+                        Y_species[speciei].boundaryField()[patchi][facei];
+                    const scalar evs =
+                        eVibSpecies[speciei].boundaryField()[patchi][facei];
+
+                    if (Ys < vibHelpers::YTrace) continue;
+                    if (evs <= VSMALL)
+                    {
+                        pTVs[facei] = pTTR[facei];
+                        continue;
+                    }
+
+                    pTVs[facei] =
+                        vibHelpers::TvHO(evs, RSp[speciei], thetaSp[speciei]);
+
+                    wY[n]  = Ys;
+                    wR[n]  = RSp[speciei];
+                    wTh[n] = thetaSp[speciei];
+                    wTv[n] = pTVs[facei];
+                    wEv[n] = evs;
+                    ++n;
                 }
 
-                pTVmix[facei] = (sumY > SMALL ? sumTV/sumY : 0.0);
+                pTVmix[facei] = vibHelpers::TvMix
+                (
+                    n, wY, wR, wTh, wTv, wEv, pTTR[facei], maxG2f
+                );
+
+                forAll(Y_species, speciei)
+                {
+                    if (!vibSpecieActive[speciei]) continue;
+                    if
+                    (
+                        Y_species[speciei].boundaryField()[patchi][facei]
+                    < vibHelpers::YTrace
+                    )
+                    {
+                        TVibSpecies[speciei].boundaryFieldRef()[patchi][facei] =
+                            pTVmix[facei];
+                    }
+                }
             }
         }
 
+        forAll(Y_species, speciei)
+        {
+            if (!vibSpecieActive[speciei]) continue;
+            TVibSpecies[speciei].correctBoundaryConditions();
+            eVibSpecies[speciei].correctBoundaryConditions();
+        }
         TVib.correctBoundaryConditions();
+
+        Info<< "  [vib] G1 round-trip max = "
+            << returnReduce(maxRT, maxOp<scalar>())
+            << "  G2 mismatch max = " << returnReduce(maxG2, maxOp<scalar>())
+            << "  trace (G4) = " << returnReduce(nTrace, sumOp<label>())
+            << "  e_v<=0 -> T_TR = " << returnReduce(nNonPos, sumOp<label>())
+            << nl;
+        // ---- end P3-03 -------------------------------------------------------
 
         // Mutation++ path: atomic electronic energy diagnostic
         if (thermo2T.hasElectronicVibCoupling())
