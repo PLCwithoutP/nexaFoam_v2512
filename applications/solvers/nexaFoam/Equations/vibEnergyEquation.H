@@ -497,7 +497,8 @@ if (use2T)
                 rhoYEvibSpecies[speciei].correctBoundaryConditions();
 
                 eVibSpecies[speciei] =
-                    rhoYEvibSpecies[speciei]/rhoYi[speciei];
+                    rhoYEvibSpecies[speciei]
+                    /max(rhoYi[speciei], vibHelpers::YTrace*rho);   // P3-02: no rhoYi floor
                 eVibSpecies[speciei].correctBoundaryConditions();
             }
 
