@@ -51,6 +51,7 @@ Description
 #include "vibHelpers.H"
 #include "fixedValueFvPatchFields.H"
 #include "zeroGradientFvPatchFields.H"
+#include "wallFvPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -185,9 +186,7 @@ int main(int argc, char *argv[])
             mesh.update();
         }
 
-        // Effective diffusion coefficient must be updated in every timestep
-        Deff = thermo2T.fickDiffusionCoeff();
-        Deff.correctBoundaryConditions();
+        #include "transportUpdate.H"     // kappaTRW, cvTRmix, Deff
 
         kurganovFlux.calcDirectedInterpolation();
         kurganovFlux.calcSoundSpeed();
@@ -229,7 +228,7 @@ int main(int argc, char *argv[])
         }
 
         muLam = thermo2T.mu();
-        kappaPP = thermo2T.kappaTR();
+        kappaPP = kappaTRW;
         volTensorField tauMC("tauMC", muLam*dev2(Foam::T(fvc::grad(U))));
 
         if (use2T)
