@@ -50,31 +50,63 @@ if (mixtureCheck)
         );
     }
 
-    // --- 5) Bound and renormalise Yi
-    for (label i = 0; i < nSpec; ++i)
-    {
-        Y[i].max(SMALL);
-        Y[i].min(1.0);
-        Y[i].correctBoundaryConditions();
-    }
-
+    // --- 5) Conserved partial densities from the diffused Yi (P3-04, D3.2).
+    //     The diffused Yi are renormalised (this only redistributes the linear
+    //     solver residual; sum rhoYi = rho exactly) but NOT clipped: an
+    //     undershoot stays in rhoYi so that every species mass is conserved.
+    //     It is counted, and clipped only in the property field Y (step 6).
     volScalarField sumY
     (
         IOobject("sumY", runTime.timeName(), mesh,
-                 IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
+                IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
         mesh,
         dimensionedScalar(dimless, 0.0)
     );
     for (label i = 0; i < nSpec; ++i) sumY += Y[i];
     sumY.max(SMALL);
-    for (label i = 0; i < nSpec; ++i) Y[i] /= sumY;
 
-    // --- 6) Rebuild rhoYi consistent with the diffused, renormalised Yi
+    label  nNegY   = 0;
+    scalar negMass = 0;
     for (label i = 0; i < nSpec; ++i)
     {
-        rhoYi[i] = rho*Y[i];
+        rhoYi[i] = rho*Y[i]/sumY;
         rhoYi[i].correctBoundaryConditions();
+
+        const scalarField& rYi = rhoYi[i].primitiveField();
+        forAll(rYi, celli)
+        {
+            if (rYi[celli] < 0)
+            {
+                ++nNegY;
+                negMass -= rYi[celli]*mesh.V()[celli];
+            }
+        }
     }
+    reduce(nNegY, sumOp<label>());
+    reduce(negMass, sumOp<scalar>());
+    if (nNegY > 0)
+    {
+        Info<< "    [Y] negative rhoY_s kept in the conserved field: " << nNegY
+            << " species-cells, " << negMass << " kg in total" << nl;
+    }
+
+    // --- 6) Property mass fractions (read by thermo, transport, chemistry and
+    //     the fluxes): clip to [0, 1] and renormalise. rhoYi is not touched.
+    for (label i = 0; i < nSpec; ++i)
+    {
+        Y[i] = rhoYi[i]/rho;
+        Y[i].max(0.0);
+        Y[i].min(1.0);
+    }
+    sumY = dimensionedScalar(dimless, 0.0);
+    for (label i = 0; i < nSpec; ++i) sumY += Y[i];
+    sumY.max(SMALL);
+    for (label i = 0; i < nSpec; ++i)
+    {
+        Y[i] /= sumY;
+        Y[i].correctBoundaryConditions();
+    }
+    // ---- end P3-04 ----------------------------------------------------------
 
     // --- 7) Rebuild diffusive mass flux phiJYi from the CORRECTED Yi for the
     //     explicit species-enthalpy / vib-energy transport in the energy
