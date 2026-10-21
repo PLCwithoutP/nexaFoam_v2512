@@ -78,7 +78,81 @@ if (solveSpeciesVib)
     Info<< "G1 check passed: the closed-form T_v inverse matches EsVib "
         << "for every molecule (50, 300, 3000, 20000 K)." << nl << endl;
 }
-// ---- end P3-06 / P3-01 -------------------------------------------------------
+
+// C-V model data for the chemistry split (applyChemistry.H)
+// The same keywords the library CVEnergySource reads, so the cases need no
+// change: CVTreatment (preferential | non-preferential, required) and
+// alphaDissociation (optional, default 0.3) in thermophysicalProperties,
+// dissociationPotential [J/kg] per molecule in speciesDict.
+word CVTreatment("non-preferential");
+scalar alphaDissociation = 0.3;
+scalarList Dissoc(Y_species.size(), Zero);
+
+if (use2T && mixtureCheck && useChemistry)
+{
+    const IOdictionary thermoDictCV
+    (
+        IOobject
+        (
+            "thermophysicalProperties",
+            runTime.constant(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        )
+    );
+
+    CVTreatment = thermoDictCV.get<word>("CVTreatment");
+
+    if (CVTreatment != "preferential" && CVTreatment != "non-preferential")
+    {
+        FatalIOErrorInFunction(thermoDictCV)
+            << "Invalid CVTreatment = '" << CVTreatment << "'." << nl
+            << "Valid values are 'preferential' and 'non-preferential'."
+            << exit(FatalIOError);
+    }
+
+    thermoDictCV.readIfPresent("alphaDissociation", alphaDissociation);
+
+    const IOdictionary speciesDictCV
+    (
+        IOobject
+        (
+            "speciesDict",
+            runTime.constant(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        )
+    );
+
+    forAll(Y_species, speciei)
+    {
+        if (!vibSpecieActive[speciei]) continue;
+
+        // Field name "Y_<specie>" -> speciesDict key "<specie>"
+        const word fName(Y_species[speciei].name());
+        const word sName
+        (
+            fName.substr(0, 2) == "Y_" ? word(fName.substr(2)) : fName
+        );
+
+        Dissoc[speciei] =
+            speciesDictCV.subDict(sName).get<scalar>("dissociationPotential");
+    }
+
+    Info<< "C-V exchange in the chemistry split: " << CVTreatment;
+    if (CVTreatment == "preferential")
+    {
+        Info<< ", alphaDissociation = " << alphaDissociation;
+    }
+    Info<< nl << endl;
+}
+
+const bool CVpreferential = (CVTreatment == "preferential");
+// ---- end P5-01 -----------------------------------------------------------------
 
 // sensible enthalpy
 volScalarField& hTR = thermo2T.h();

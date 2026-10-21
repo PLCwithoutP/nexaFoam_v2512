@@ -300,8 +300,9 @@ public:
                     Yi_pos = max(min(Yi_pos, scalar(1)), scalar(0));
                     Yi_neg = max(min(Yi_neg, scalar(1)), scalar(0));
 
-                    eVmix_pos += Yi_pos*interpolate(eVibSp[i], pos_, TTR_.name());
-                    eVmix_neg += Yi_neg*interpolate(eVibSp[i], neg_, TTR_.name());
+                    // P5-05 (G5): same face e_v as calcSpeciesVibFluxes
+                    eVmix_pos += Yi_pos*upwind<scalar>(mesh_, pos_).interpolate(eVibSp[i]);
+                    eVmix_neg += Yi_neg*upwind<scalar>(mesh_, neg_).interpolate(eVibSp[i]);
                 }
             }
         }
@@ -423,14 +424,17 @@ public:
             Yi_pos = max(min(Yi_pos, scalar(1)), scalar(0));
             Yi_neg = max(min(Yi_neg, scalar(1)), scalar(0));
 
+            // P5-05 (G5): e_v,m of the cell on each side (Larrouturou 1991):
+            // the eps flux is the species flux times the e_v of the cell it
+            // leaves, so eps >= 0 and e_v bounded wherever rhoY_m >= 0.
             surfaceScalarField eV_pos
             (
-                interpolate(eVibSpecies[i], pos_, TTR_.name())
+                upwind<scalar>(mesh_, pos_).interpolate(eVibSpecies[i])
             );
 
             surfaceScalarField eV_neg
             (
-                interpolate(eVibSpecies[i], neg_, TTR_.name())
+                upwind<scalar>(mesh_, neg_).interpolate(eVibSpecies[i])
             );
 
             phiRhoEvibYi_[i] =

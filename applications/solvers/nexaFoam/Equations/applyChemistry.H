@@ -86,6 +86,105 @@ if (useChemistry)
         Y[i].correctBoundaryConditions();
     }
 
+    // Chemistry-vibration exchange in the same split step as the species
+    // update and with the same d(rhoY_m) = dt*omegaDot_m (no lag, K8).
+    // Destruction (d(rhoY_m) < 0):
+    //   non-preferential: the molecules removed carry the molecule's own
+    //       e_v,m = eps_m/rhoY_m (I3), i.e. e_v,m is unchanged:
+    //       eps_new = eps*rhoY_new/rhoY_old  (exact, >= 0 while rhoY_new >= 0)
+    //   preferential: they carry alphaDissociation*D_m, Patankar-implicit:
+    //       eps_new = eps^2/(eps + |d rhoY| alpha D_m)  (>= 0 for any dt, G6)
+    // Formation (d(rhoY_m) > 0, D5.4): the new molecules carry e_v,m(T_v,m)
+    //   of the cell (non-preferential) or alphaDissociation*D_m (preferential).
+    // The energy only moves between eps_m and e_TR: rhoE is not touched, and
+    // e_TR is rebuilt from rhoE in step 6/7 with the eV computed here.
+    if (use2T && mixtureCheck)
+    {
+        label  nPatankar = 0;   // cells where alpha*D_m*|d rhoY| > eps
+        scalar dEcv      = 0;   // energy moved into vibration [J]
+        const scalarField& Vc   = mesh.V();
+        const scalarField& rhoC = rho.primitiveField();
+        const scalarField& TTRC = TTR.primitiveField();
+
+        forAll(Y_species, m)
+        {
+            if (!vibSpecieActive[m]) continue;
+
+            const scalarField& RRm = chemistryPtr->RR(m);
+            const scalarField& rYm = rhoYi[m].primitiveField();
+            const scalarField& evm = eVibSpecies[m].primitiveField();
+            scalarField& eps       = rhoYEvibSpecies[m].primitiveFieldRef();
+            const scalar eHatPref  = alphaDissociation*Dissoc[m];
+
+            forAll(eps, celli)
+            {
+                const scalar dRhoY = dtChem*RRm[celli];
+                if (dRhoY == 0) continue;
+
+                const scalar eps0    = eps[celli];
+                const scalar rhoYnew = rYm[celli];          // after step 2
+                const scalar rhoYold = rhoYnew - dRhoY;
+
+                if (dRhoY > 0)
+                {
+                    eps[celli] +=
+                        dRhoY
+                        *(CVpreferential ? eHatPref : max(evm[celli], scalar(0)));
+                }
+                else if (CVpreferential)
+                {
+                    if (eps0 > VSMALL)
+                    {
+                        const scalar loss = -dRhoY*eHatPref;
+                        if (loss > eps0) ++nPatankar;
+                        eps[celli] = eps0*eps0/(eps0 + loss);
+                    }
+                }
+                else if (rhoYold > VSMALL)
+                {
+                    eps[celli] = eps0*max(rhoYnew, scalar(0))/rhoYold;
+                }
+
+                dEcv += (eps[celli] - eps0)*Vc[celli];
+            }
+
+            rhoYEvibSpecies[m].correctBoundaryConditions();
+
+            eVibSpecies[m] =
+                rhoYEvibSpecies[m]/max(rhoYi[m], vibHelpers::YTrace*rho);
+            eVibSpecies[m].correctBoundaryConditions();
+
+            // T_v,m of the molecules present (G1, D3.3); trace molecules keep
+            // theirs until the next Stage 2 (G4)
+            scalarField& TVs        = TVibSpecies[m].primitiveFieldRef();
+            const scalarField& eVs  = eVibSpecies[m].primitiveField();
+            const scalar Rm         = mix.R(m);
+            const scalar thm        = mix.thetaVib(m);
+            forAll(TVs, celli)
+            {
+                if (rYm[celli] < vibHelpers::YTrace*rhoC[celli]) continue;
+                TVs[celli] =
+                    eVs[celli] > VSMALL
+                ? vibHelpers::TvHO(eVs[celli], Rm, thm)
+                : TTRC[celli];
+            }
+            TVibSpecies[m].correctBoundaryConditions();
+        }
+
+        // Mixture e_v from the new eps and rho, used for e_TR in step 6/7
+        eV = dimensionedScalar("zero", eV.dimensions(), 0.0);
+        forAll(Y_species, m)
+        {
+            if (!vibSpecieActive[m]) continue;
+            eV += rhoYEvibSpecies[m]/rho;
+        }
+        eV.correctBoundaryConditions();
+
+        Info<< "    [CV] " << CVTreatment << ": energy into vibration = "
+            << returnReduce(dEcv, sumOp<scalar>()) << " J, Patankar-limited = "
+            << returnReduce(nPatankar, sumOp<label>()) << " molecule-cells" << nl;
+    }
+
     // Step 6 & 7: Energy update from chemistry source
     //
     // neTCLib:    hTR = sensible enthalpy only → Y-change gives ΔHs,

@@ -43,14 +43,8 @@ if (use2T)
         }
         PtrList<volScalarField>& QVV = *QVVptr;
 
-        PtrList<volScalarField> QCVempty;
-        PtrList<volScalarField>* QCVptr = &QCVempty;
-        if (useChemistry)
-        {
-            const PtrList<volScalarField::Internal>& RRchem = chemistryPtr->RR();
-            QCVptr = &thermo2T.correctCVSource(RRchem);
-        }
-        PtrList<volScalarField>& QCV = *QCVptr;
+        // The C-V exchange is applied in applyChemistry.H, in
+        // the same split step as the species update.
 
         PtrList<volScalarField>& Y = thermo2T.composition().Y();
 
@@ -80,14 +74,13 @@ if (use2T)
 
             const volScalarField& QVTi = (speciei < QVT.size() ? QVT[speciei] : QVzero);
             const volScalarField& QVVi = (speciei < QVV.size() ? QVV[speciei] : QVzero);
-            const volScalarField& QCVi = (speciei < QCV.size() ? QCV[speciei] : QVzero);
 
             solve
             (
                 fvm::ddt(rhoYEvibSpecies[speciei])
               + fvc::div(phiRhoEvibYi[speciei] + phiJEvib_i)
              ==
-                QVTi + QVVi + QCVi
+                QVTi + QVVi
             );
 
             // ---- P3-02 (G4, D3.2) ------------------------------------------
@@ -103,6 +96,26 @@ if (use2T)
                 /max(rhoYi[speciei], vibHelpers::YTrace*rho);
             eVibSpecies[speciei].correctBoundaryConditions();
             // ---- end P3-02 -------------------------------------------------
+        }
+
+        //  eps_m < 0 after Stage 1 (convection,
+        //  Fick, V-T, V-V), before any decode. Counted, not clipped.
+        {
+            label nNegEps = 0;
+            forAll(Y, speciei)
+            {
+                if (!vibSpecieActive[speciei]) continue;
+                for (const scalar e : rhoYEvibSpecies[speciei].primitiveField())
+                {
+                    if (e < 0) ++nNegEps;
+                }
+            }
+            reduce(nNegEps, sumOp<label>());
+            if (nNegEps > 0)
+            {
+                Info<< "    [vib] eps < 0 after Stage 1: " << nNegEps
+                    << " molecule-cells" << nl;
+            }
         }
 
         eV = dimensionedScalar("zero", eV.dimensions(), 0.0);

@@ -44,6 +44,7 @@ Description
 #include "directionInterpolate.H"
 #include "localEulerDdtScheme.H"
 #include "fvcSmooth.H"
+#include "upwind.H"
 #include "FluxCalculators/kurganov.H"
 #include "DiffusionModels/FickModel.H"
 #include "tcLibraryInterface.H"
