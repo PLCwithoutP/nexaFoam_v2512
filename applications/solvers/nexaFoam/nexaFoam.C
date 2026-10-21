@@ -48,6 +48,8 @@ Description
 #include "tcLibraryInterface.H"
 #include "chemistryInterface.H"
 #include "vibHelpers.H"
+#include "fixedValueFvPatchFields.H"
+#include "zeroGradientFvPatchFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

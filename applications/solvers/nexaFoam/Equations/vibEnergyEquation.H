@@ -369,245 +369,256 @@ if (use2T)
     }
 
     // ============================================================
-    // Stage 3 — Viscous correction (vibrational conduction)
+    // Stage 3 — Viscous correction: vibrational conduction (G3)
     //
-    // The physical term is  div(kappaVe * grad(TVib)).
+    // P3-08 (D3.1). Replaces the mixture form with the face-chord
+    // diffusivity and the redistribution (K5, F2.13, F3.1).
     //
-    // fvm::laplacian can only be implicit in the variable being solved, which
-    // here is eV, so the term must be written  div(Gamma * grad(eV))  with
+    // Per molecule m, Wilke-weighted with the same phi_m as kappa_TR:
+    //     q_m = - X_m (kappa_v,m/phi_m) grad T_v,m
+    //         = - X_m Gt_m grad e_v,m ,   Gt_m = (kappa_v,m/c_vv,m)/phi_m
+    // (chain rule, exact for any kappa_v model). For the Eucken-type
+    // kappa_v = mu c_vv/Sc of blottnerEucken2T, kappa_v/c_vv = mu/Sc: no
+    // T_v dependence, no 0/0 in cold gas, no ratio of two gradients.
     //
-    //     Gamma = kappaVe * dTVib/deV .
-    //
-    // The previous form used Gamma = kappaVe/CvVibMix with a CELL-CENTRED
-    // CvVib. That is only equivalent when CvVib is smooth across a face.
-    // CvVib = (R/W)(x/sinh x)^2, x = theta/(2 TVib), is exponential in the
-    // near-wall range: across one wall-adjacent face in the expansion region
-    // it goes from ~1 to ~152 J/kgK (145x) while the chord dTVib/deV across
-    // that same face corresponds to ~69 J/kgK. Neither cell value is close,
-    // and no interpolation of the two recovers it.
-    //
-    // Instead build Gamma directly at the face from the two gradients:
-    //
-    //     Gamma_f = kappaVe_f * snGrad(TVib) / snGrad(eV)
-    //
-    // so that  Gamma_f*snGrad(eV) == kappaVe_f*snGrad(TVib)  identically, for
-    // any variation of CvVib. This is exact, fully implicit, and positive by
-    // construction (eV is monotone in TVib), so it carries no diffusive
-    // time-step penalty. CvVibMix is retained only as the fallback where both
-    // gradients vanish, and for diagnostics.
-    //
-    // The equivalent substitution is harmless for eTR because CvTR ~ 2.5R is
-    // very nearly constant; it is not harmless here.
+    // Solved implicitly on y_m = eps_m/rho = Y_m e_v,m, using
+    //     X_m Gt_m grad e_v,m = Gh_m (grad y_m - e_v,m grad Y_m),
+    //     Gh_m = (W/W_m) Gt_m ,
+    // the second part explicit. Nothing divides by Y_m or X_m.
+    // The conducted energy is added to rhoE, as before.
     // ============================================================
     if (!inviscid)
     {
-        // --- Mixture vibrational specific heat (fallback + diagnostic) ---
-        volScalarField CvVibMix
+        const label nSp = Y_species.size();
+        const scalarField& rhoC = rho.primitiveField();
+        const scalarField& V    = mesh.V();
+
+        scalarList WSp(nSp);
+        scalarList thSp(nSp, Zero);
+        forAll(Y_species, speciei)
+        {
+            WSp[speciei] = mix.W(speciei);
+            if (vibSpecieActive[speciei]) thSp[speciei] = mix.thetaVib(speciei);
+        }
+
+        // Work lists for one point (cell or face)
+        scalarList Xp(nSp), mup(nSp);
+
+        // Gh_m at one point; Xp and mup must hold that point's values
+        auto GhPoint = [&]
         (
-            IOobject("CvVibMix", runTime.timeName(), mesh,
-                    IOobject::NO_READ, IOobject::AUTO_WRITE, IOobject::NO_REGISTER),
+            const label m,
+            const scalar pP,
+            const scalar TTRP,
+            const scalar TvP,
+            const scalar Wmix
+        ) -> scalar
+        {
+            // Wilke denominator phi_m = sum_r X_r phi_mr (r = m gives X_m),
+            // as WilkeMR::scalingFactor
+            scalar phi = 0;
+            for (label r = 0; r < nSp; ++r)
+            {
+                const scalar a =
+                    1 + std::sqrt(mup[m]/mup[r])*std::pow(WSp[r]/WSp[m], 0.25);
+                phi += Xp[r]*a*a/std::sqrt(8*(1 + WSp[m]/WSp[r]));
+            }
+
+            // kappa_v/c_vv at the local T_v; at T_v = theta where c_vv
+            // underflows (frozen gas): the ratio is T_v-independent for Eucken
+            scalar Tev = TvP;
+            scalar cvv = mix.CvVib(m, pP, TTRP, Tev, thSp[m]);
+            if (!(cvv > VSMALL))
+            {
+                Tev = thSp[m];
+                cvv = mix.CvVib(m, pP, TTRP, Tev, thSp[m]);
+            }
+            const scalar kOverC =
+                mix.kappaVib(m, pP, TTRP, Tev, thSp[m])/cvv;
+
+            return (Wmix/WSp[m])*kOverC/max(phi, VSMALL);
+        };
+
+        // Fill Xp, mup at one point from mass fractions; returns W_mix
+        auto fillPoint = [&]
+        (
+            const UList<scalar>& Ypt,
+            const scalar TTRP
+        ) -> scalar
+        {
+            scalar sumYW = 0;
+            for (label r = 0; r < nSp; ++r) sumYW += Ypt[r]/WSp[r];
+            const scalar Wmix = 1/max(sumYW, VSMALL);
+            for (label r = 0; r < nSp; ++r)
+            {
+                Xp[r]  = Ypt[r]*Wmix/WSp[r];
+                mup[r] = mix.mu(r, TTRP);
+            }
+            return Wmix;
+        };
+
+        scalarList Ypt(nSp);
+
+        volScalarField dRhoE
+        (
+            IOobject("dRhoEvibCond", runTime.timeName(), mesh,
+                    IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
             mesh,
-            dimensionedScalar("small", dimEnergy/dimMass/dimTemperature, SMALL),
-            calculatedFvPatchScalarField::typeName
-        );
-        {
-            scalarField& cvv = CvVibMix.primitiveFieldRef();
-            forAll(cvv, celli)
-            {
-                scalar sumc = 0.0;
-                forAll(Y_species, speciei)
-                {
-                    if (!vibSpecieActive[speciei])       continue;
-                    if (!mix.isSpecieMolecular(speciei)) continue;   // atomic: no vib mode
-
-                    const scalar Tv = max(TVibSpecies[speciei][celli], scalar(1));
-                    const scalar x  = 0.5*mix.thetaVib(speciei)/Tv;
-                    const scalar xs = (x < scalar(20)) ? x/Foam::sinh(x) : 0.0;  // ->0 as Tv->0, no sinh overflow
-
-                    // CvVib_s = (R/M_s)*(x/sinh x)^2  — identical to the thermo's SHO CvVib
-                    sumc += Y_species[speciei][celli]*mix.R(speciei)*xs*xs;
-                }
-                cvv[celli] = max(sumc, SMALL);
-            }
-            volScalarField::Boundary& cvvBf = CvVibMix.boundaryFieldRef();
-
-            forAll(cvvBf, patchi)
-            {
-                fvPatchScalarField& cvvp = cvvBf[patchi];
-
-                forAll(cvvp, facei)
-                {
-                    scalar sumc = 0.0;
-
-                    forAll(Y_species, speciei)
-                    {
-                        if (!vibSpecieActive[speciei])       continue;
-                        if (!mix.isSpecieMolecular(speciei)) continue;
-
-                        const scalar Tv = max
-                        (
-                            TVibSpecies[speciei].boundaryField()[patchi][facei],
-                            scalar(1)
-                        );
-                        const scalar x  = 0.5*mix.thetaVib(speciei)/Tv;
-                        const scalar xs = (x < scalar(20)) ? x/Foam::sinh(x) : 0.0;
-
-                        const scalar Ys = max
-                        (
-                            Y_species[speciei].boundaryField()[patchi][facei],
-                            scalar(0)
-                        );
-
-                        sumc += Ys*mix.R(speciei)*xs*xs;
-                    }
-
-                    cvvp[facei] = max(sumc, SMALL);
-                }
-            }
-        }
-
-        volScalarField kappaVibMix("kappaVibMix", thermo2T.kappaVib());
-
-        // Cell-based diffusivity: fallback only, where the face gradients are
-        // too small for the chord to be meaningful.
-        surfaceScalarField alphaVibF
-        (
-            "alphaVibF",
-            fvc::interpolate(kappaVibMix/CvVibMix)
+            dimensionedScalar("zero", dimEnergy/dimVolume, 0.0)
         );
 
-        // --- Face-chord diffusivity: Gamma_f = kappaVe_f * dTVib_f / deV_f ---
-        {
-            const surfaceScalarField kappaVeF(fvc::interpolate(kappaVibMix));
-            const surfaceScalarField sgT(fvc::snGrad(TVib));
-            const surfaceScalarField sgE(fvc::snGrad(eV));
-
-            // Below these the chord is numerically meaningless; keep fallback.
-            const scalar sgTMin = 1e-6;    // [K/m]
-            const scalar sgEMin = 1e-6;    // [J/kg/m]
-
-            scalarField& af = alphaVibF.primitiveFieldRef();
-            const scalarField& kf = kappaVeF.primitiveField();
-            const scalarField& gt = sgT.primitiveField();
-            const scalarField& ge = sgE.primitiveField();
-
-            forAll(af, facei)
-            {
-                if (mag(gt[facei]) > sgTMin && mag(ge[facei]) > sgEMin)
-                {
-                    // mag() on both: eV is monotone in TVib, so the two
-                    // gradients always share a sign and Gamma_f > 0.
-                    af[facei] = kf[facei]*mag(gt[facei])/mag(ge[facei]);
-                }
-            }
-
-            surfaceScalarField::Boundary& afBf = alphaVibF.boundaryFieldRef();
-            const surfaceScalarField::Boundary& kfBf = kappaVeF.boundaryField();
-            const surfaceScalarField::Boundary& gtBf = sgT.boundaryField();
-            const surfaceScalarField::Boundary& geBf = sgE.boundaryField();
-
-            forAll(afBf, patchi)
-            {
-                fvsPatchScalarField& afp = afBf[patchi];
-
-                forAll(afp, facei)
-                {
-                    const scalar gtp = gtBf[patchi][facei];
-                    const scalar gep = geBf[patchi][facei];
-
-                    if (mag(gtp) > sgTMin && mag(gep) > sgEMin)
-                    {
-                        afp[facei] = kfBf[patchi][facei]*mag(gtp)/mag(gep);
-                    }
-                }
-            }
-        }
-
-        // Capture eV before the conduction correction (for per-species
-        // redistribution and for the energy diagnostics below)
         volScalarField eV_before("eV_before", eV);
 
-        // Implicit vibrational conduction, deferred-correction ddt form
-        solve
-        (
-            fvm::ddt(rho, eV) - fvc::ddt(rho, eV)
-          - fvm::laplacian(alphaVibF, eV)
-        );
+        scalar dEcond = 0;      // conducted vibrational energy, all molecules [J]
 
+        forAll(Y_species, m)
+        {
+            if (!vibSpecieActive[m]) continue;
+
+            // --- Gh_m: cells, processor patches, then physical patches
+            volScalarField Gh
+            (
+                IOobject("Gh_" + Y_species[m].name(), runTime.timeName(), mesh,
+                        IOobject::NO_READ, IOobject::NO_WRITE,
+                        IOobject::NO_REGISTER),
+                mesh,
+                dimensionedScalar("zero", dimMass/dimLength/dimTime, 0.0)
+            );
+            {
+                scalarField& GhC = Gh.primitiveFieldRef();
+                const scalarField& pC   = p.primitiveField();
+                const scalarField& TTRC = TTR.primitiveField();
+                const scalarField& TvC  = TVibSpecies[m].primitiveField();
+
+                forAll(GhC, celli)
+                {
+                    for (label r = 0; r < nSp; ++r)
+                    {
+                        Ypt[r] = Y_species[r][celli];
+                    }
+                    const scalar Wmix = fillPoint(Ypt, TTRC[celli]);
+                    GhC[celli] =
+                        GhPoint(m, pC[celli], TTRC[celli], TvC[celli], Wmix);
+                }
+            }
+            Gh.correctBoundaryConditions();     // processor patches
+
+            forAll(Gh.boundaryField(), patchi)
+            {
+                fvPatchScalarField& pGh = Gh.boundaryFieldRef()[patchi];
+                if (pGh.coupled()) continue;
+
+                const fvPatchScalarField& pp   = p.boundaryField()[patchi];
+                const fvPatchScalarField& pTTR = TTR.boundaryField()[patchi];
+                const fvPatchScalarField& pTv  =
+                    TVibSpecies[m].boundaryField()[patchi];
+
+                forAll(pGh, facei)
+                {
+                    for (label r = 0; r < nSp; ++r)
+                    {
+                        Ypt[r] = Y_species[r].boundaryField()[patchi][facei];
+                    }
+                    const scalar Wmix = fillPoint(Ypt, pTTR[facei]);
+                    pGh[facei] =
+                        GhPoint(m, pp[facei], pTTR[facei], pTv[facei], Wmix);
+                }
+            }
+
+            // --- y_m = eps_m/rho with BCs: fixed where T_v is fixed (wall,
+            //     inlet, T_v jump), zero gradient elsewhere; constraint and
+            //     processor patches keep their own type
+            const volScalarField y0("y0", rhoYEvibSpecies[m]/rho);
+
+            wordList yTypes(mesh.boundary().size());
+            forAll(yTypes, patchi)
+            {
+                yTypes[patchi] =
+                    TVibSpecies[m].boundaryField()[patchi].fixesValue()
+                ? fixedValueFvPatchScalarField::typeName
+                : zeroGradientFvPatchScalarField::typeName;
+            }
+
+            volScalarField y
+            (
+                IOobject("eVib", runTime.timeName(), mesh,
+                        IOobject::NO_READ, IOobject::NO_WRITE,
+                        IOobject::NO_REGISTER),
+                y0,
+                yTypes
+            );
+
+            forAll(y.boundaryField(), patchi)
+            {
+                fvPatchScalarField& py = y.boundaryFieldRef()[patchi];
+                if (!py.fixesValue()) continue;
+
+                const fvPatchScalarField& pp   = p.boundaryField()[patchi];
+                const fvPatchScalarField& pTTR = TTR.boundaryField()[patchi];
+                const fvPatchScalarField& pTv  =
+                    TVibSpecies[m].boundaryField()[patchi];
+                const fvPatchScalarField& pY   =
+                    Y_species[m].boundaryField()[patchi];
+
+                scalarField yb(py.size());
+                forAll(yb, facei)
+                {
+                    yb[facei] = pY[facei]*mix.EsVib
+                    (
+                        m, pp[facei], pTTR[facei], pTv[facei], thSp[m]
+                    );
+                }
+                py == yb;
+            }
+            y.correctBoundaryConditions();
+
+            // --- Implicit conduction (deferred-correction ddt form, as before)
+            solve
+            (
+                fvm::ddt(rho, y) - fvc::ddt(rho, y)
+            - fvm::laplacian(fvc::interpolate(Gh), y)
+            ==
+            - fvc::laplacian
+                (
+                    fvc::interpolate(Gh*eVibSpecies[m]),
+                    Y_species[m]
+                )
+            );
+
+            // --- Back to the conserved field; energy to rhoE
+            const scalarField dEps(rhoC*(y.primitiveField() - y0.primitiveField()));
+
+            rhoYEvibSpecies[m].primitiveFieldRef() += dEps;
+            rhoYEvibSpecies[m].correctBoundaryConditions();
+
+            eVibSpecies[m] =
+                rhoYEvibSpecies[m]/max(rhoYi[m], vibHelpers::YTrace*rho);
+            eVibSpecies[m].correctBoundaryConditions();
+
+            dRhoE.primitiveFieldRef() += dEps;
+            dEcond += gSum(dEps*V);
+
+            Info<< "  [G3] " << Y_species[m].name()
+                << "  Gh min/max = " << gMin(Gh.primitiveField())
+                << " / " << gMax(Gh.primitiveField()) << nl;
+        }
+
+        eV = dimensionedScalar("zero", eV.dimensions(), 0.0);
+        forAll(Y_species, speciei)
+        {
+            if (!vibSpecieActive[speciei]) continue;
+            eV += rhoYEvibSpecies[speciei]/rho;
+        }
         eV.correctBoundaryConditions();
         rhoEv = rho*eV;
         rhoEv.correctBoundaryConditions();
 
-        rhoE += rho*(eV - eV_before);
-
-        if (mixtureCheck)
-        {
-            volScalarField delta_eV("delta_eV", eV - eV_before);
-
-            volScalarField Yactive
-            (
-                IOobject("Yactive", runTime.timeName(), mesh,
-                         IOobject::NO_READ, IOobject::NO_WRITE,
-                         IOobject::NO_REGISTER),
-                mesh,
-                dimensionedScalar("zero", dimless, 0.0)
-            );
-
-            forAll(Y_species, speciei)
-            {
-                if (!vibSpecieActive[speciei]) continue;
-                Yactive += Y_species[speciei];
-            }
-
-            const dimensionedScalar YactiveMin("small", dimless, SMALL);
-
-            forAll(Y_species, speciei)
-            {
-                if (!vibSpecieActive[speciei]) continue;
-
-                rhoYEvibSpecies[speciei] +=
-                    rhoYi[speciei]*delta_eV/max(Yactive, YactiveMin);
-
-                rhoYEvibSpecies[speciei].correctBoundaryConditions();
-
-                eVibSpecies[speciei] =
-                    rhoYEvibSpecies[speciei]
-                    /max(rhoYi[speciei], vibHelpers::YTrace*rho);   // P3-02: no rhoYi floor
-                eVibSpecies[speciei].correctBoundaryConditions();
-            }
-
-            // Round-trip check: this should now be ~1.0 to machine precision.
-            volScalarField eVrebuilt
-            (
-                IOobject("eVrebuilt", runTime.timeName(), mesh,
-                         IOobject::NO_READ, IOobject::NO_WRITE,
-                         IOobject::NO_REGISTER),
-                mesh,
-                dimensionedScalar("zero", eV.dimensions(), 0.0)
-            );
-
-            forAll(Y_species, speciei)
-            {
-                if (!vibSpecieActive[speciei]) continue;
-                eVrebuilt += rhoYEvibSpecies[speciei]/rho;
-            }
-
-            const scalar dNew =
-                gSum((rho*(eVrebuilt - eV_before))().primitiveField()*mesh.V());
-            const scalar dRef =
-                gSum((rho*delta_eV)().primitiveField()*mesh.V());
-
-            Info<< "  [vibRedist] recovered/applied = "
-                << (mag(dRef) > VSMALL ? dNew/dRef : 1.0) << nl;
-        }
+        rhoE.primitiveFieldRef() += dRhoE.primitiveField();
+        rhoE.correctBoundaryConditions();
 
         // ---------------------- diagnostics ----------------------
         Info<< "  eV     min/max = " << gMin(eV.primitiveField())
             << " / " << gMax(eV.primitiveField()) << nl;
-        Info<< "  CvVibMix min   = " << gMin(CvVibMix.primitiveField()) << nl;
-        Info<< "  alphaVibF max  = " << gMax(alphaVibF.primitiveField())
-            << "   (cell-based would give "
-            << gMax((kappaVibMix/CvVibMix)().primitiveField()) << ")" << nl;
 
         forAll(Y_species, i)
         {
@@ -618,21 +629,19 @@ if (use2T)
                 << "  TVib max = " << gMax(TVibSpecies[i].primitiveField()) << nl;
         }
 
-        const scalarField& V = mesh.V();
         const scalar Etot = gSum(rhoE.primitiveField()*V);
         const scalar Evib = gSum(rhoEv.primitiveField()*V);
-        const scalar dEvibCond = gSum(rho.primitiveField()
-                               *(eV.primitiveField() - eV_before.primitiveField())*V);
 
         Info<< "  E_total    = " << Etot
             << "  E_vib      = " << Evib
             << "  E_vib/E_tot= " << Evib/Etot << nl
-            << "  dE_vib(conduction) = " << dEvibCond
+            << "  dE_vib(conduction) = " << dEcond
             << "   (should be small: boundary flux only)" << nl;
 
         Info<< "  max|delta_eV| = " << gMax(mag(eV.primitiveField()
                                         - eV_before.primitiveField())) << nl;
     }
+    // ---- end P3-08 -----------------------------------------------------------
 }
 
 // ************************************************************************* //
