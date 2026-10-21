@@ -275,20 +275,39 @@ if (use2T)
                         eVibSpecies[speciei].boundaryField()[patchi][facei];
 
                     if (Ys < vibHelpers::YTrace) continue;
-                    if (evs <= VSMALL)
+
+                    // A molecule whose own BC fixes T_v on this
+                    // patch (per-molecule jump, neSmoluchowskiJumpTv) keeps
+                    // it; its energy for G2 is then e_v(T_v,face)
+                    const bool fixedTv = pTVs.fixesValue();
+                    scalar evUse = evs;
+
+                    if (fixedTv)
                     {
-                        pTVs[facei] = pTTR[facei];
-                        continue;
+                        evUse = vibHelpers::evHO
+                        (
+                            pTVs[facei], RSp[speciei], thetaSp[speciei]
+                        );
+                    }
+                    else
+                    {
+                        if (evs <= VSMALL)
+                        {
+                            pTVs[facei] = pTTR[facei];
+                            continue;
+                        }
+
+                        pTVs[facei] =
+                            vibHelpers::TvHO(evs, RSp[speciei], thetaSp[speciei]);
                     }
 
-                    pTVs[facei] =
-                        vibHelpers::TvHO(evs, RSp[speciei], thetaSp[speciei]);
+                    if (evUse <= VSMALL) continue;
 
                     wY[n]  = Ys;
                     wR[n]  = RSp[speciei];
                     wTh[n] = thetaSp[speciei];
                     wTv[n] = pTVs[facei];
-                    wEv[n] = evs;
+                    wEv[n] = evUse;
                     ++n;
                 }
 
@@ -304,6 +323,7 @@ if (use2T)
                     (
                         Y_species[speciei].boundaryField()[patchi][facei]
                     < vibHelpers::YTrace
+                    && !TVibSpecies[speciei].boundaryField()[patchi].fixesValue()
                     )
                     {
                         TVibSpecies[speciei].boundaryFieldRef()[patchi][facei] =
@@ -471,6 +491,12 @@ if (use2T)
 
         scalar dEcond = 0;      // conducted vibrational energy, all molecules [J]
 
+        // P4-07: vibrational wall heat flux, accumulated per molecule below
+        forAll(qWallVib.boundaryField(), patchi)
+        {
+            qWallVib.boundaryFieldRef()[patchi] = 0.0;
+        }
+
         forAll(Y_species, m)
         {
             if (!vibSpecieActive[m]) continue;
@@ -524,6 +550,10 @@ if (use2T)
                         GhPoint(m, pp[facei], pTTR[facei], pTv[facei], Wmix);
                 }
             }
+
+            // P4-06 (D4.4): Gamma_v,m = X_m G_m = Y_m Gh_m for the
+            // per-molecule T_v jump BC (used at its next update)
+            GammaVibSpecies[m] = Y_species[m]*Gh;
 
             // --- y_m = eps_m/rho with BCs: fixed where T_v is fixed (wall,
             //     inlet, T_v jump), zero gradient elsewhere; constraint and
@@ -585,6 +615,27 @@ if (use2T)
                 )
             );
 
+            // P4-07 (D4.5): vibrational wall heat flux of this molecule from
+            // the discrete flux of the solve above, positive into the wall
+            {
+                const surfaceScalarField GhF(fvc::interpolate(Gh));
+                const surfaceScalarField GhEF
+                (
+                    fvc::interpolate(Gh*eVibSpecies[m])
+                );
+                const surfaceScalarField sgY(fvc::snGrad(y));
+                const surfaceScalarField sgYm(fvc::snGrad(Y_species[m]));
+
+                forAll(mesh.boundary(), patchi)
+                {
+                    if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
+
+                    qWallVib.boundaryFieldRef()[patchi] +=
+                        GhEF.boundaryField()[patchi]*sgYm.boundaryField()[patchi]
+                    - GhF.boundaryField()[patchi]*sgY.boundaryField()[patchi];
+                }
+            }
+
             // --- Back to the conserved field; energy to rhoE
             const scalarField dEps(rhoC*(y.primitiveField() - y0.primitiveField()));
 
@@ -601,6 +652,22 @@ if (use2T)
             Info<< "  [G3] " << Y_species[m].name()
                 << "  Gh min/max = " << gMin(Gh.primitiveField())
                 << " / " << gMax(Gh.primitiveField()) << nl;
+        }
+
+        // vibrational wall heat load [W]
+        {
+            scalar QV = 0;
+            forAll(mesh.boundary(), patchi)
+            {
+                if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
+                QV += sum
+                (
+                    qWallVib.boundaryField()[patchi]
+                    *mesh.magSf().boundaryField()[patchi]
+                );
+            }
+            Info<< "  [qWall] vib = " << returnReduce(QV, sumOp<scalar>())
+                << " W" << nl;
         }
 
         eV = dimensionedScalar("zero", eV.dimensions(), 0.0);
