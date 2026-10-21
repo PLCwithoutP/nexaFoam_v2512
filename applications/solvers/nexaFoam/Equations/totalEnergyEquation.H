@@ -108,22 +108,108 @@ if (!inviscid)
         }
     }
 
-    // Implicit TR conduction via alphaheTR * gamma = kappaTR/CvTR
-    // Explicit: species diffusive enthalpy, viscous work
-    volScalarField alphavTR
+    // TR conduction with the Wilke kappa_TR,
+    // implicit on e_TR with Gamma_TR = kappa_TR,W/c_v,TR and the composition
+    // term of the chain rule,
+    //     kappa grad T = Gamma_TR (grad e_TR - sum_s e_TR,s grad Y_s),
+    // exact also where c_v,TR varies (molecules 5/2 R, atoms 3/2 R).
+    // Pure mixtures keep the library form (alphaheTR*gamma).
+    // Explicit: species diffusive enthalpy, viscous work.
+    volScalarField GammaTR
     (
-        "alphavTR",
-        thermo2T.alphaheTR() * thermo2T.gamma()
+        "GammaTR",
+        mixtureCheck
+    ? kappaTRW/cvTRmix
+    : thermo2T.alphaheTR()*thermo2T.gamma()
     );
 
-    
+    surfaceScalarField phiTRcomp
+    (
+        IOobject("phiTRcomp", runTime.timeName(), mesh,
+                IOobject::NO_READ, IOobject::NO_WRITE, IOobject::NO_REGISTER),
+        mesh,
+        dimensionedScalar("zero", dimEnergy/dimTime, 0.0)
+    );
+    phiTRcomp.setOriented(true);
+
+    if (mixtureCheck)
+    {
+        forAll(Y_species, speciei)
+        {
+            const scalar Rs = mix.R(speciei);
+
+            volScalarField eTRs
+            (
+                IOobject("eTR_" + Y_species[speciei].name(), runTime.timeName(),
+                        mesh, IOobject::NO_READ, IOobject::NO_WRITE,
+                        IOobject::NO_REGISTER),
+                mesh,
+                dimensionedScalar("zero", eTR.dimensions(), 0.0)
+            );
+
+            forAll(eTRs, celli)
+            {
+                eTRs[celli] =
+                    mix.Hs(speciei, p[celli], TTR[celli]) - Rs*TTR[celli];
+            }
+
+            forAll(eTRs.boundaryField(), patchi)
+            {
+                fvPatchScalarField& pe = eTRs.boundaryFieldRef()[patchi];
+                const fvPatchScalarField& pp = p.boundaryField()[patchi];
+                const fvPatchScalarField& pT = TTR.boundaryField()[patchi];
+
+                forAll(pe, facei)
+                {
+                    pe[facei] = mix.Hs(speciei, pp[facei], pT[facei]) - Rs*pT[facei];
+                }
+            }
+
+            phiTRcomp +=
+                fvc::interpolate(GammaTR*eTRs)
+                *fvc::snGrad(Y_species[speciei])*mesh.magSf();
+        }
+    }
+
     solve
     (
         fvm::ddt(rho, eTR) - fvc::ddt(rho, eTR)
-        - fvm::laplacian(alphavTR, eTR)
-     ==
-        - fvc::div(phiJhTR + phiJhVib)
+    - fvm::laplacian(GammaTR, eTR)
+    ==
+    - fvc::div(phiJhTR + phiJhVib)
+    - fvc::div(phiTRcomp)
     );
+
+    // ---- P4-07 (D4.5): TR wall heat flux from the discrete flux of this
+    // solve, positive into the wall
+    {
+        const surfaceScalarField GammaTRf(fvc::interpolate(GammaTR));
+        const surfaceScalarField sgE(fvc::snGrad(eTR));
+
+        forAll(mesh.boundary(), patchi)
+        {
+            if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
+
+            qWallTR.boundaryFieldRef()[patchi] =
+                phiTRcomp.boundaryField()[patchi]
+                /mesh.magSf().boundaryField()[patchi]
+            - GammaTRf.boundaryField()[patchi]*sgE.boundaryField()[patchi];
+        }
+
+        scalar QTR = 0;
+        forAll(mesh.boundary(), patchi)
+        {
+            if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
+            QTR += sum
+            (
+                qWallTR.boundaryField()[patchi]
+                *mesh.magSf().boundaryField()[patchi]
+            );
+        }
+        Info<< "  [qWall] TR = " << returnReduce(QTR, sumOp<scalar>())
+            << " W" << nl;
+    }
+    // ---- end P4-04 / P4-07 -----------------------------------------------------
 
     thermo2T.correct();
     // Sync rhoE with viscously corrected eTR
