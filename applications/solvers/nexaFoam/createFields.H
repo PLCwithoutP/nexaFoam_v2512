@@ -32,6 +32,54 @@ forAll(Y_species, speciei)
         solveSpeciesVib && mix.isSpecieMolecular(speciei);
 }
 
+// ---- P3-06 (A2): 2T needs a multi-component mixture, also for one species
+//      (as D7). The pure-mixture 2T path (thermo correctTVib, A2) is not used.
+if (use2T && !mixtureCheck)
+{
+    FatalErrorInFunction
+        << "twoTemperature true requires a multi-component mixture "
+        << "(multiComponent2TMixture or neReactingMixture), also for a "
+        << "single species." << nl
+        << exit(FatalError);
+}
+
+// ---- P3-01 (G1): start-up check that the closed-form inverse TvHO is the
+//      exact inverse of the library EsVib for every molecule.
+if (solveSpeciesVib)
+{
+    const scalar Ttest[4] = {50, 300, 3000, 20000};
+
+    forAll(Y_species, speciei)
+    {
+        if (!vibSpecieActive[speciei]) continue;
+
+        const scalar theta = mix.thetaVib(speciei);
+        const scalar R     = mix.R(speciei);
+
+        for (label k = 0; k < 4; ++k)
+        {
+            const scalar ev =
+                mix.EsVib(speciei, 1e5, Ttest[k], Ttest[k], theta);
+            const scalar Tback = vibHelpers::TvHO(ev, R, theta);
+
+            if (!(mag(Tback - Ttest[k]) <= 1e-10*Ttest[k]))
+            {
+                FatalErrorInFunction
+                    << "G1 check failed for " << Y_species[speciei].name()
+                    << ": T = " << Ttest[k] << " K, EsVib = " << ev
+                    << " J/kg, closed-form inverse = " << Tback << " K." << nl
+                    << "The library vibrational model is no longer the "
+                    << "harmonic oscillator with R = mix.R(speciei)."
+                    << exit(FatalError);
+            }
+        }
+    }
+
+    Info<< "G1 check passed: the closed-form T_v inverse matches EsVib "
+        << "for every molecule (50, 300, 3000, 20000 K)." << nl << endl;
+}
+// ---- end P3-06 / P3-01 -------------------------------------------------------
+
 // sensible enthalpy
 volScalarField& hTR = thermo2T.h();
 volScalarField& eTR = thermo2T.eTR();

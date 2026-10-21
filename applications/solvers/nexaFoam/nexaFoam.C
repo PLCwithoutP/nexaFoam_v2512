@@ -47,6 +47,7 @@ Description
 #include "DiffusionModels/FickModel.H"
 #include "tcLibraryInterface.H"
 #include "chemistryInterface.H"
+#include "vibHelpers.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
