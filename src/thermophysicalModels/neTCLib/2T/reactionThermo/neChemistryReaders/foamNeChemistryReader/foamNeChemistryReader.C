@@ -74,7 +74,17 @@ namespace
             Foam::dictionary& reactionDict =
                 reactionsDict.subDict(iter().keyword());
 
-            reactionDict.add("twoTemperature", twoTemperature, true);
+            // P6-02 (B5): in a 2T run a reaction's own twoTemperature key is
+            // kept and the global flag is only its default; in a 1T run there
+            // is no T_v (TVibCell_ unset), so every reaction is forced to false.
+            if (!twoTemperature)
+            {
+                reactionDict.set("twoTemperature", false);
+            }
+            else if (!reactionDict.found("twoTemperature"))
+            {
+                reactionDict.add("twoTemperature", true);
+            }
         }
 
         return chemDict;

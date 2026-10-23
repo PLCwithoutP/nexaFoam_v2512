@@ -2,9 +2,18 @@ if (useChemistry)
 {
     const scalar dtChem = runTime.deltaTValue();
 
-    // 1) Solve the local chemistry ODE system.
-    //    This internally uses the chemistry solver selected in chemistryProperties (currently neEulerImplicit).
-    chemistryPtr->solve(dtChem);
+    // 1) Solve the local chemistry ODE system (neEulerImplicit, chemistryProperties).
+    //    P6-03 (B4, F6.2): solve() returns the smallest chemical sub-step
+    //    estimate over the cells (capped at 2 dt). Below dt some cell is
+    //    sub-stepped, and only then do the constant-p T update (B4) and the
+    //    sub-step sequence enter RR. Not observed in RS-4d (T6.2, F6.10).
+    const scalar dtChemMin =
+        returnReduce(chemistryPtr->solve(dtChem), minOp<scalar>());
+    if (dtChemMin < dtChem)
+    {
+        Info<< "    [chem] sub-stepping: min chemical step = " << dtChemMin
+            << " s < dt = " << dtChem << " s" << nl;
+    }
 
     // 2) Species source-term split update: rhoYi^{n+1} = rhoYi^* + dt * RR_i
     PtrList<volScalarField>& Y = thermo2T.composition().Y();

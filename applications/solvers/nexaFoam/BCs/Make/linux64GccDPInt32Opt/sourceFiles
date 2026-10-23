@@ -1,7 +1,0 @@
-SOURCE = \
-rho/fixed2TRhoFvPatchScalarField.C \
-U/neMaxwellSlipUFvPatchVectorField.C \
-T/neSmoluchowskiJumpTRFvPatchScalarField.C \
-T/neSmoluchowskiJumpTvFvPatchScalarField.C \
-
-# sources
