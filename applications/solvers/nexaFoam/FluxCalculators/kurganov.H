@@ -134,8 +134,13 @@ public:
         rho_pos_ = interpolate(rho_, pos_);
         rho_neg_ = interpolate(rho_, neg_);
 
-        rhoU_pos_ = interpolate(rhoU_, pos_, U_.name());
-        rhoU_neg_ = interpolate(rhoU_, neg_, U_.name());
+        // Reconstruct primitive U (bounded by neighbour velocities),
+        // then form rhoU from the reconstructed rho -> no ratio overshoot
+        U_pos_ = interpolate(U_, pos_);
+        U_neg_ = interpolate(U_, neg_);
+
+        rhoU_pos_ = rho_pos_*U_pos_;
+        rhoU_neg_ = rho_neg_*U_neg_;
 
         // rPsi = 1/psi (EOS-dependent)
         volScalarField rPsi("rPsi", 1.0/psi_);
@@ -144,9 +149,6 @@ public:
 
         e_pos_ = interpolate(eTR_, pos_, TTR_.name());
         e_neg_ = interpolate(eTR_, neg_, TTR_.name());
-
-        U_pos_ = rhoU_pos_/rho_pos_;
-        U_neg_ = rhoU_neg_/rho_neg_;
 
         p_pos_ = rho_pos_*rPsi_pos_;
         p_neg_ = rho_neg_*rPsi_neg_;

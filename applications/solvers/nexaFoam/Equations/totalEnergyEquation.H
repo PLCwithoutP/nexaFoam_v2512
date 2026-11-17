@@ -26,6 +26,83 @@ solve
 // ================================================================
 thermo2T.eVib() = rhoEv / rho;
 
+{
+    const scalar TFloor = positivityTFloor;
+    const scalarField& V        = mesh.V();
+    const scalarField& rhoCells = rho.primitiveField();
+    const scalarField& eVCells  = eV.primitiveField();
+    const scalarField& pCells   = p.primitiveField();
+
+    scalarField& rhoECells = rhoE.primitiveFieldRef();
+    vectorField& rhoUCells = rhoU.primitiveFieldRef();
+    vectorField& UCells    = U.primitiveFieldRef();
+
+    label  nRescaled = 0;
+    label  nReset    = 0;
+    scalar dMomentum = 0;   // |momentum| removed  [kg m/s]
+    scalar dEnergy   = 0;   // energy added        [J]
+
+    forAll(rhoCells, celli)
+    {
+        const scalar rhoc = rhoCells[celli];
+        if (!(rhoc > 0)) continue;          // caught by the density check
+
+        // e_TR of this cell's composition at TFloor
+        scalar eMin = 0;
+        forAll(Y_species, speciei)
+        {
+            eMin +=
+                Y_species[speciei][celli]
+               *(
+                    mix.Hs(speciei, pCells[celli], TFloor)
+                  - mix.R(speciei)*TFloor
+                );
+        }
+
+        const scalar eAvail = rhoECells[celli]/rhoc - eVCells[celli] - eMin;
+        const scalar KE     = 0.5*magSqr(UCells[celli]);
+
+        if (KE <= eAvail) continue;         // admissible: nothing to do
+
+        if (eAvail > 0)
+        {
+            // Scale velocity so that KE = eAvail -> e_TR = eMin exactly
+            const scalar s = Foam::sqrt(eAvail/KE);
+            dMomentum += rhoc*V[celli]*mag(UCells[celli])*(1.0 - s);
+            UCells[celli]   *= s;
+            rhoUCells[celli] = rhoc*UCells[celli];
+            ++nRescaled;
+        }
+        else
+        {
+            // Not enough energy even at rest: stop the cell, lift e_TR
+            dMomentum += rhoc*V[celli]*mag(UCells[celli]);
+            const scalar rhoENew = rhoc*(eMin + eVCells[celli]);
+            dEnergy += (rhoENew - rhoECells[celli])*V[celli];
+            UCells[celli]    = Zero;
+            rhoUCells[celli] = Zero;
+            rhoECells[celli] = rhoENew;
+            ++nReset;
+        }
+    }
+
+    reduce(nRescaled, sumOp<label>());
+    reduce(nReset,    sumOp<label>());
+    reduce(dMomentum, sumOp<scalar>());
+    reduce(dEnergy,   sumOp<scalar>());
+
+    if (nRescaled + nReset > 0)
+    {
+        Info<< "    [admissibility] e_TR < e_TR(" << TFloor << " K): "
+            << nRescaled << " cells KE-rescaled, "
+            << nReset    << " cells reset; momentum removed = " << dMomentum
+            << " kg m/s, energy added = " << dEnergy << " J" << nl;
+    }
+
+    U.correctBoundaryConditions();
+    rhoU.boundaryFieldRef() == rho.boundaryField()*U.boundaryField();
+}
+
 eTR =
     rhoE / rho
   - 0.5*magSqr(U)

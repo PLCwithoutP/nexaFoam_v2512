@@ -241,6 +241,8 @@ int main(int argc, char *argv[])
 
         #include "Equations/yEquation.H"
 
+        #include "positivityCheck.H"
+
         #include "Equations/momentumEquation.H"
 
         #include "Equations/totalEnergyEquation.H"

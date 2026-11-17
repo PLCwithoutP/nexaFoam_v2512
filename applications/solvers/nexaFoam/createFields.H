@@ -752,3 +752,10 @@ volScalarField qWallVib
 );
 
 kappaVe.correctBoundaryConditions();
+
+// --- Positivity / admissibility controls (system/fvSolution: positivity{})
+const scalar positivityTFloor =
+    mesh.solutionDict().subOrEmptyDict("positivity")
+        .getOrDefault<scalar>("TFloor", 25.0);
+
+Info<< "Positivity: TFloor = " << positivityTFloor << " K" << nl << endl;
