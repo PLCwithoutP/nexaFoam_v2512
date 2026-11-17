@@ -176,7 +176,8 @@ int main(int argc, char *argv[])
     while (runTime.run())
     {
         #include "readTimeControls.H"
-
+        // Re-read every step: debugLevel can be changed during a run
+        debugLevel = runTime.controlDict().getOrDefault<label>("debugLevel", 0);
         if (!LTS)
         {
             #include "setDeltaT.H"
@@ -229,6 +230,7 @@ int main(int argc, char *argv[])
         }
 
         muLam = thermo2T.mu();
+        muLam.correctBoundaryConditions();
         kappaPP = kappaTRW;
         volTensorField tauMC("tauMC", muLam*dev2(Foam::T(fvc::grad(U))));
 
@@ -250,7 +252,7 @@ int main(int argc, char *argv[])
         #include "Equations/vibEnergyEquation.H"
 
         // Sanity check
-        if (mixtureCheck)
+        if (mixtureCheck && debugLevel >= 1)
         {
             volScalarField drho(rhoCont - rho);
             const scalar maxErr = gMax(mag(drho)().primitiveField());

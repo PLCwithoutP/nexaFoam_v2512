@@ -189,9 +189,12 @@ if (useChemistry)
         }
         eV.correctBoundaryConditions();
 
-        Info<< "    [CV] " << CVTreatment << ": energy into vibration = "
-            << returnReduce(dEcv, sumOp<scalar>()) << " J, Patankar-limited = "
-            << returnReduce(nPatankar, sumOp<label>()) << " molecule-cells" << nl;
+        if (debugLevel >= 1)
+        {
+            Info<< "    [CV] " << CVTreatment << ": energy into vibration = "
+                << returnReduce(dEcv, sumOp<scalar>()) << " J, Patankar-limited = "
+                << returnReduce(nPatankar, sumOp<label>()) << " molecule-cells" << nl;
+        }
     }
 
     // Step 6 & 7: Energy update from chemistry source

@@ -1,3 +1,8 @@
+// Debug level (system/controlDict): 0 = standard log,
+// 1 = physics summary, 2 = full diagnostics
+label debugLevel =
+    runTime.controlDict().getOrDefault<label>("debugLevel", 0);
+
 #include "createRDeltaT.H"
 #include "thermochemistryCheck.H"
 #include "createMixture.H"
@@ -75,8 +80,11 @@ if (solveSpeciesVib)
         }
     }
 
-    Info<< "G1 check passed: the closed-form T_v inverse matches EsVib "
-        << "for every molecule (50, 300, 3000, 20000 K)." << nl << endl;
+    if (debugLevel >= 1)
+    {
+        Info<< "G1 check passed: the closed-form T_v inverse matches EsVib "
+            << "for every molecule (50, 300, 3000, 20000 K)." << nl << endl;
+    }    
 }
 
 // C-V model data for the chemistry split (applyChemistry.H)

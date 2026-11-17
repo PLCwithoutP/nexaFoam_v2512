@@ -205,12 +205,15 @@ if (use2T)
                 TVs[celli] =
                     vibHelpers::TvHO(eVs[celli], RSp[speciei], thetaSp[speciei]);
 
-                const scalar eBack = mix.EsVib
-                (
-                    speciei, pCells[celli], TTRCells[celli], TVs[celli],
-                    thetaSp[speciei]
-                );
-                maxRT = max(maxRT, mag(eBack - eVs[celli])/eVs[celli]);
+                if (debugLevel >= 2)
+                {
+                    const scalar eBack = mix.EsVib
+                    (
+                        speciei, pCells[celli], TTRCells[celli], TVs[celli],
+                        thetaSp[speciei]
+                    );
+                    maxRT = max(maxRT, mag(eBack - eVs[celli])/eVs[celli]);
+                }
             }
         }
 
@@ -353,13 +356,16 @@ if (use2T)
             eVibSpecies[speciei].correctBoundaryConditions();
         }
         TVib.correctBoundaryConditions();
+        if (debugLevel >= 2)
+        {
+            Info<< "  [vib] G1 round-trip max = "
+                << returnReduce(maxRT, maxOp<scalar>())
+                << "  G2 mismatch max = " << returnReduce(maxG2, maxOp<scalar>())
+                << "  trace (G4) = " << returnReduce(nTrace, sumOp<label>())
+                << "  e_v<=0 -> T_TR = " << returnReduce(nNonPos, sumOp<label>())
+                << nl;
+        }
 
-        Info<< "  [vib] G1 round-trip max = "
-            << returnReduce(maxRT, maxOp<scalar>())
-            << "  G2 mismatch max = " << returnReduce(maxG2, maxOp<scalar>())
-            << "  trace (G4) = " << returnReduce(nTrace, sumOp<label>())
-            << "  e_v<=0 -> T_TR = " << returnReduce(nNonPos, sumOp<label>())
-            << nl;
         // ---- end P3-03 -------------------------------------------------------
 
         // Mutation++ path: atomic electronic energy diagnostic
@@ -500,7 +506,11 @@ if (use2T)
             dimensionedScalar("zero", dimEnergy/dimVolume, 0.0)
         );
 
-        volScalarField eV_before("eV_before", eV);
+        autoPtr<volScalarField> eV_beforePtr;
+        if (debugLevel >= 2)
+        {
+            eV_beforePtr.reset(new volScalarField("eV_before", eV));
+        }
 
         scalar dEcond = 0;      // conducted vibrational energy, all molecules [J]
 
@@ -541,7 +551,7 @@ if (use2T)
                 }
             }
             Gh.correctBoundaryConditions();     // processor patches
-
+            
             forAll(Gh.boundaryField(), patchi)
             {
                 fvPatchScalarField& pGh = Gh.boundaryFieldRef()[patchi];
@@ -627,7 +637,7 @@ if (use2T)
                     Y_species[m]
                 )
             );
-
+            
             // P4-07 (D4.5): vibrational wall heat flux of this molecule from
             // the discrete flux of the solve above, positive into the wall
             {
@@ -660,14 +670,21 @@ if (use2T)
             eVibSpecies[m].correctBoundaryConditions();
 
             dRhoE.primitiveFieldRef() += dEps;
-            dEcond += gSum(dEps*V);
+            if (debugLevel >= 1)
+            {
+                dEcond += gSum(dEps*V);
+            }
 
-            Info<< "  [G3] " << Y_species[m].name()
-                << "  Gh min/max = " << gMin(Gh.primitiveField())
-                << " / " << gMax(Gh.primitiveField()) << nl;
+            if (debugLevel >= 2)
+            {
+                Info<< "  [G3] " << Y_species[m].name()
+                    << "  Gh min/max = " << gMin(Gh.primitiveField())
+                    << " / " << gMax(Gh.primitiveField()) << nl;
+            }
         }
 
         // vibrational wall heat load [W]
+        if (debugLevel >= 1)
         {
             scalar QV = 0;
             forAll(mesh.boundary(), patchi)
@@ -697,29 +714,38 @@ if (use2T)
         rhoE.correctBoundaryConditions();
 
         // ---------------------- diagnostics ----------------------
-        Info<< "  eV     min/max = " << gMin(eV.primitiveField())
-            << " / " << gMax(eV.primitiveField()) << nl;
-
-        forAll(Y_species, i)
+        if (debugLevel >= 2)
         {
-            if (!vibSpecieActive[i]) continue;
-            Info<< "  " << Y_species[i].name()
-                << "  rhoYi min = " << gMin(rhoYi[i].primitiveField())
-                << "  eVib max = " << gMax(eVibSpecies[i].primitiveField())
-                << "  TVib max = " << gMax(TVibSpecies[i].primitiveField()) << nl;
+            Info<< "  eV     min/max = " << gMin(eV.primitiveField())
+                << " / " << gMax(eV.primitiveField()) << nl;
+
+            forAll(Y_species, i)
+            {
+                if (!vibSpecieActive[i]) continue;
+                Info<< "  " << Y_species[i].name()
+                    << "  rhoYi min = " << gMin(rhoYi[i].primitiveField())
+                    << "  eVib max = " << gMax(eVibSpecies[i].primitiveField())
+                    << "  TVib max = " << gMax(TVibSpecies[i].primitiveField()) << nl;
+            }
         }
 
-        const scalar Etot = gSum(rhoE.primitiveField()*V);
-        const scalar Evib = gSum(rhoEv.primitiveField()*V);
+        if (debugLevel >= 1)
+        {
+            const scalar Etot = gSum(rhoE.primitiveField()*V);
+            const scalar Evib = gSum(rhoEv.primitiveField()*V);
 
-        Info<< "  E_total    = " << Etot
-            << "  E_vib      = " << Evib
-            << "  E_vib/E_tot= " << Evib/Etot << nl
-            << "  dE_vib(conduction) = " << dEcond
-            << "   (should be small: boundary flux only)" << nl;
+            Info<< "  E_total    = " << Etot
+                << "  E_vib      = " << Evib
+                << "  E_vib/E_tot= " << Evib/Etot << nl
+                << "  dE_vib(conduction) = " << dEcond
+                << "   (should be small: boundary flux only)" << nl;
+        }
 
-        Info<< "  max|delta_eV| = " << gMax(mag(eV.primitiveField()
-                                        - eV_before.primitiveField())) << nl;
+        if (debugLevel >= 2)
+        {
+            Info<< "  max|delta_eV| = " << gMax(mag(eV.primitiveField()
+                                            - eV_beforePtr().primitiveField())) << nl;
+        }
     }
     // ---- end P3-08 -----------------------------------------------------------
 }

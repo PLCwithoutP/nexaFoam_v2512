@@ -328,7 +328,7 @@ Foam::heNe2TReactionThermo<BasicNe2TThermo, MixtureType>::wilkeKappaAverage
             sumKappaV += kappaCell * V[celli];
         }
     }
-
+    
     return sumKappaV / Vtot;
 }
 

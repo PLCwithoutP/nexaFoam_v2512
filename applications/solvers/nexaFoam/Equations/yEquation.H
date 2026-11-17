@@ -27,7 +27,8 @@ if (mixtureCheck)
     }
     rho.primitiveFieldRef() =
         max(rho.primitiveField(), scalarField(rho.size(), SMALL));
-
+    rho.correctBoundaryConditions();
+    
     // --- 3) Recover Yi = rhoYi / rho  (no clipping yet; let diffusion act
     //     on the raw convected field, bound afterwards in step 5).
     for (label i = 0; i < nSpec; ++i)

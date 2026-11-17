@@ -273,18 +273,21 @@ if (!inviscid)
             - GammaTRf.boundaryField()[patchi]*sgE.boundaryField()[patchi];
         }
 
-        scalar QTR = 0;
-        forAll(mesh.boundary(), patchi)
+        if (debugLevel >= 1)
         {
-            if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
-            QTR += sum
-            (
-                qWallTR.boundaryField()[patchi]
-                *mesh.magSf().boundaryField()[patchi]
-            );
+            scalar QTR = 0;
+            forAll(mesh.boundary(), patchi)
+            {
+                if (!isA<wallFvPatch>(mesh.boundary()[patchi])) continue;
+                QTR += sum
+                (
+                    qWallTR.boundaryField()[patchi]
+                    *mesh.magSf().boundaryField()[patchi]
+                );
+            }
+            Info<< "  [qWall] TR = " << returnReduce(QTR, sumOp<scalar>())
+                << " W" << nl;
         }
-        Info<< "  [qWall] TR = " << returnReduce(QTR, sumOp<scalar>())
-            << " W" << nl;
     }
     // ---- end P4-04 / P4-07 -----------------------------------------------------
 
